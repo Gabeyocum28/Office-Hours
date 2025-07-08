@@ -1,0 +1,768 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OfficeHours AI - Test Interface</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+            padding: 20px;
+            text-align: center;
+        }
+        
+        .main-content {
+            display: grid;
+            grid-template-columns: 300px 1fr;
+            min-height: 70vh;
+        }
+        
+        .sidebar {
+            background: #f8f9fa;
+            padding: 20px;
+            border-right: 1px solid #e9ecef;
+        }
+        
+        .chat-area {
+            display: flex;
+            flex-direction: column;
+            height: 70vh;
+        }
+        
+        .avatar-section {
+            background: #000;
+            height: 200px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 18px;
+            border-bottom: 1px solid #e9ecef;
+        }
+        
+        .chat-messages {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+            background: #fafafa;
+        }
+        
+        .message {
+            margin-bottom: 15px;
+            padding: 10px 15px;
+            border-radius: 10px;
+            max-width: 80%;
+        }
+        
+        .user-message {
+            background: #007bff;
+            color: white;
+            margin-left: auto;
+        }
+        
+        .ai-message {
+            background: white;
+            border: 1px solid #e9ecef;
+        }
+        
+        .chat-input {
+            display: flex;
+            padding: 20px;
+            background: white;
+            border-top: 1px solid #e9ecef;
+        }
+        
+        .chat-input input {
+            flex: 1;
+            padding: 10px 15px;
+            border: 1px solid #ddd;
+            border-radius: 25px;
+            margin-right: 10px;
+            font-size: 16px;
+        }
+        
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s;
+            margin: 5px;
+        }
+        
+        .btn-primary {
+            background: #007bff;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: #0056b3;
+        }
+        
+        .btn-success {
+            background: #28a745;
+            color: white;
+        }
+        
+        .btn-warning {
+            background: #ffc107;
+            color: #212529;
+        }
+        
+        .form-group {
+            margin-bottom: 15px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        
+        .form-group input, .form-group select {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+            text-align: center;
+        }
+        
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        
+        .hidden {
+            display: none;
+        }
+        
+        .file-list {
+            margin-top: 20px;
+        }
+        
+        .file-item {
+            padding: 10px;
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .chat-controls {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+            flex-wrap: wrap;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎓 OfficeHours AI - Test Interface</h1>
+            <p>Test your AI chat and D-ID avatar integration</p>
+        </div>
+        
+        <div class="main-content">
+            <div class="sidebar">
+                <!-- Login Section -->
+                <div id="loginSection">
+                    <h3>Login / Register</h3>
+                    <div class="form-group">
+                        <label>Email:</label>
+                        <input type="email" id="email" placeholder="your@email.com">
+                    </div>
+                    <div class="form-group">
+                        <label>Password:</label>
+                        <input type="password" id="password" placeholder="password">
+                    </div>
+                    <div class="form-group">
+                        <label>Name (for registration):</label>
+                        <input type="text" id="name" placeholder="Your Name">
+                    </div>
+                    <div class="form-group">
+                        <label>Role:</label>
+                        <select id="role">
+                            <option value="student">Student</option>
+                            <option value="teacher">Teacher</option>
+                        </select>
+                    </div>
+                    <button class="btn btn-primary" onclick="login()">Login</button>
+                    <button class="btn btn-success" onclick="register()">Register</button>
+                </div>
+                
+                <!-- Office Section -->
+                <div id="officeSection" class="hidden">
+                    <h3>Office Management</h3>
+                    <div id="teacherControls" class="hidden">
+                        <div class="form-group">
+                            <label>Office Name:</label>
+                            <input type="text" id="officeName" placeholder="CS101 Office Hours">
+                        </div>
+                        <button class="btn btn-success" onclick="createOffice()">Create Office</button>
+                        
+                        <div id="fileUploadSection" class="hidden">
+                            <h4>Upload Files</h4>
+                            <input type="file" id="fileInput" multiple accept=".pdf,.doc,.docx,.txt,.ppt,.pptx,.jpg,.jpeg,.png">
+                            <button class="btn btn-primary" onclick="uploadFile()">Upload</button>
+                            <div id="fileList" class="file-list"></div>
+                        </div>
+                    </div>
+                    
+                    <div id="studentControls" class="hidden">
+                        <div class="form-group">
+                            <label>Join Code:</label>
+                            <input type="text" id="joinCode" placeholder="ABC123">
+                        </div>
+                        <button class="btn btn-primary" onclick="joinOffice()">Join Office</button>
+                    </div>
+                    
+                    <!-- Chat Controls -->
+                    <div id="chatControlsSection" class="hidden">
+                        <div class="chat-controls">
+                            <button class="btn btn-success" id="startChatBtn" onclick="startChat()">💬 Start Text Chat</button>
+                            <button class="btn btn-warning" id="videoChatBtn" onclick="startVideoChat()" disabled>🎥 Video Chat</button>
+                            <button class="btn btn-secondary" id="testDIDBtn" onclick="testDID()" disabled>🤖 Test D-ID</button>
+                        </div>
+                    </div>
+                </div>
+                
+                <div id="status"></div>
+            </div>
+            
+            <div class="chat-area">
+                <div class="avatar-section">
+                    <div id="avatarPlaceholder">🤖 D-ID Avatar will appear here</div>
+                </div>
+                
+                <div class="chat-messages" id="chatMessages">
+                    <div class="message ai-message">
+                        <strong>AI Assistant:</strong> Hello! I'm your AI teaching assistant. Once you're logged in and connected to an office, I can help answer questions based on your course materials.
+                    </div>
+                </div>
+                
+                <div class="chat-input">
+                    <input type="text" id="messageInput" placeholder="Type your question..." disabled>
+                    <button class="btn btn-primary" id="sendBtn" onclick="sendMessage()" disabled>Send</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Global state
+        let authToken = null;
+        let currentUser = null;
+        let currentOffice = null;
+        let chatSession = null;
+        
+        // API base URL - adjust this to your Flask server
+        const API_BASE = 'http://localhost:5001';
+        
+        console.log('🎓 OfficeHours AI Frontend Loaded');
+        
+        // Utility functions
+        function showStatus(message, type = 'success') {
+            console.log(`Status: ${message} (${type})`);
+            const status = document.getElementById('status');
+            status.innerHTML = `<div class="status ${type}">${message}</div>`;
+            setTimeout(() => status.innerHTML = '', 5000);
+        }
+        
+        function apiCall(endpoint, method = 'GET', data = null, isFormData = false) {
+            console.log(`API Call: ${method} ${endpoint}`, data);
+            
+            const headers = {};
+            
+            if (authToken) {
+                headers['Authorization'] = `Bearer ${authToken}`;
+            }
+            
+            if (!isFormData && data) {
+                headers['Content-Type'] = 'application/json';
+            }
+            
+            const config = {
+                method,
+                headers,
+            };
+            
+            if (data) {
+                config.body = isFormData ? data : JSON.stringify(data);
+            }
+            
+            return fetch(`${API_BASE}${endpoint}`, config)
+                .then(response => {
+                    console.log(`API Response: ${response.status}`, response);
+                    return response.json();
+                })
+                .catch(error => {
+                    console.error('API Error:', error);
+                    throw error;
+                });
+        }
+        
+        // Authentication functions
+        async function register() {
+            console.log('🔐 Register function called');
+            const data = {
+                name: document.getElementById('name').value,
+                email: document.getElementById('email').value,
+                password: document.getElementById('password').value,
+                role: document.getElementById('role').value
+            };
+            
+            try {
+                const result = await apiCall('/auth/register', 'POST', data);
+                if (result.error) {
+                    showStatus(result.error, 'error');
+                } else {
+                    showStatus('Registration successful! Please login.');
+                }
+            } catch (e) {
+                showStatus('Registration failed: ' + e.message, 'error');
+            }
+        }
+        
+        async function login() {
+            console.log('🔐 Login function called');
+            const data = {
+                email: document.getElementById('email').value,
+                password: document.getElementById('password').value
+            };
+            
+            try {
+                const result = await apiCall('/auth/login', 'POST', data);
+                if (result.error) {
+                    showStatus(result.error, 'error');
+                } else {
+                    authToken = result.token;
+                    currentUser = result.user;
+                    console.log('✅ Login successful:', currentUser);
+                    showStatus(`Welcome, ${result.user.name}!`);
+                    showOfficeSection();
+                }
+            } catch (e) {
+                showStatus('Login failed: ' + e.message, 'error');
+            }
+        }
+        
+        function showOfficeSection() {
+            console.log('📂 Showing office section for role:', currentUser.role);
+            document.getElementById('loginSection').classList.add('hidden');
+            document.getElementById('officeSection').classList.remove('hidden');
+            
+            if (currentUser.role === 'teacher') {
+                document.getElementById('teacherControls').classList.remove('hidden');
+            } else {
+                document.getElementById('studentControls').classList.remove('hidden');
+            }
+        }
+        
+        // Office management functions
+        async function createOffice() {
+            console.log('🏢 Create office function called');
+            const name = document.getElementById('officeName').value;
+            if (!name) {
+                showStatus('Please enter an office name', 'error');
+                return;
+            }
+            
+            try {
+                const result = await apiCall('/office/create', 'POST', { name });
+                if (result.error) {
+                    showStatus(result.error, 'error');
+                } else {
+                    currentOffice = result.office;
+                    console.log('✅ Office created:', currentOffice);
+                    showStatus(`Office created! Join code: ${result.office.join_code}`);
+                    document.getElementById('fileUploadSection').classList.remove('hidden');
+                    document.getElementById('chatControlsSection').classList.remove('hidden');
+                    loadOfficeFiles();
+                }
+            } catch (e) {
+                showStatus('Office creation failed: ' + e.message, 'error');
+            }
+        }
+        
+        async function joinOffice() {
+            console.log('🚪 Join office function called');
+            const joinCode = document.getElementById('joinCode').value;
+            if (!joinCode) {
+                showStatus('Please enter a join code', 'error');
+                return;
+            }
+            
+            try {
+                const result = await apiCall('/office/join', 'POST', { join_code: joinCode });
+                if (result.error) {
+                    showStatus(result.error, 'error');
+                } else {
+                    showStatus(result.message);
+                    currentOffice = { join_code: joinCode }; // We'll need the office ID for chat
+                    document.getElementById('chatControlsSection').classList.remove('hidden');
+                }
+            } catch (e) {
+                showStatus('Join office failed: ' + e.message, 'error');
+            }
+        }
+        
+        // File upload functions
+        async function uploadFile() {
+            console.log('📁 Upload file function called');
+            const fileInput = document.getElementById('fileInput');
+            const files = fileInput.files;
+            
+            if (!files.length) {
+                showStatus('Please select files to upload', 'error');
+                return;
+            }
+            
+            if (!currentOffice) {
+                showStatus('No office selected', 'error');
+                return;
+            }
+            
+            for (let file of files) {
+                console.log('📤 Uploading file:', file.name);
+                const formData = new FormData();
+                formData.append('file', file);
+                formData.append('office_id', currentOffice.id);
+                
+                try {
+                    const result = await apiCall('/upload/file', 'POST', formData, true);
+                    if (result.error) {
+                        showStatus(`Upload failed for ${file.name}: ${result.error}`, 'error');
+                    } else {
+                        showStatus(`${file.name} uploaded successfully!`);
+                    }
+                } catch (e) {
+                    showStatus(`Upload failed for ${file.name}: ${e.message}`, 'error');
+                }
+            }
+            
+            // Clear the input and reload file list
+            fileInput.value = '';
+            loadOfficeFiles();
+        }
+        
+        async function loadOfficeFiles() {
+            if (!currentOffice) return;
+            
+            console.log('📋 Loading office files for office:', currentOffice.id);
+            try {
+                const result = await apiCall(`/upload/office/${currentOffice.id}/files`);
+                const fileList = document.getElementById('fileList');
+                
+                if (result.files && result.files.length > 0) {
+                    fileList.innerHTML = '<h4>Uploaded Files:</h4>' + 
+                        result.files.map(file => `
+                            <div class="file-item">
+                                <span>${file.filename} (${file.file_type})</span>
+                                <span>${file.processed ? '✅' : '⏳'}</span>
+                            </div>
+                        `).join('');
+                } else {
+                    fileList.innerHTML = '<p>No files uploaded yet.</p>';
+                }
+            } catch (e) {
+                console.error('Failed to load files:', e);
+            }
+        }
+        
+        // Chat functions
+        async function startChat() {
+            console.log('💬 Start text chat function called');
+            if (!currentOffice) {
+                showStatus('Please join or create an office first', 'error');
+                return;
+            }
+            
+            console.log('Starting chat with office:', currentOffice);
+            console.log('Auth token:', authToken ? 'Present' : 'Missing');
+            
+            try {
+                const result = await apiCall('/chat/start', 'POST', { office_id: currentOffice.id });
+                
+                if (result.error) {
+                    showStatus(result.error, 'error');
+                } else {
+                    chatSession = result.session_id;
+                    console.log('✅ Chat session started:', chatSession);
+                    document.getElementById('messageInput').disabled = false;
+                    document.getElementById('sendBtn').disabled = false;
+                    document.getElementById('videoChatBtn').disabled = false;
+                    document.getElementById('testDIDBtn').disabled = false;
+                    showStatus('Chat session started!');
+                    loadChatHistory();
+                }
+            } catch (e) {
+                showStatus('Failed to start chat: ' + e.message, 'error');
+                console.error('Chat start error:', e);
+            }
+        }
+        
+        async function sendMessage() {
+            console.log('=== 📤 SEND MESSAGE CALLED ===');
+            
+            const messageInput = document.getElementById('messageInput');
+            const message = messageInput.value.trim();
+            
+            console.log('Message:', message);
+            console.log('Chat session:', chatSession);
+            console.log('Auth token:', authToken ? 'Present' : 'Missing');
+            
+            if (!message) {
+                console.log('❌ No message to send');
+                return;
+            }
+            
+            if (!chatSession) {
+                console.log('❌ No chat session');
+                showStatus('Please start a chat session first', 'error');
+                return;
+            }
+            
+            // Add user message to chat
+            console.log('➕ Adding user message to chat');
+            addMessageToChat('user', message);
+            messageInput.value = '';
+            
+            // Show typing indicator
+            const typingId = addMessageToChat('ai', '🤔 Thinking...');
+            console.log('💭 Added thinking indicator:', typingId);
+            
+            console.log('🚀 Sending to API...');
+            
+            try {
+                const requestData = {
+                    session_id: chatSession,
+                    message: message,
+                    use_avatar: false  // For text chat, we don't need avatar
+                };
+                
+                console.log('📋 Request data:', requestData);
+                
+                const result = await apiCall('/chat/message', 'POST', requestData);
+                
+                console.log('📥 API response:', result);
+                
+                // Remove typing indicator
+                const typingElement = document.getElementById(typingId);
+                if (typingElement) {
+                    typingElement.remove();
+                    console.log('🗑️ Removed thinking indicator');
+                }
+                
+                if (result.error) {
+                    console.log('❌ API error:', result.error);
+                    addMessageToChat('ai', `Error: ${result.error}`);
+                    showStatus(result.error, 'error');
+                } else {
+                    console.log('✅ AI reply:', result.reply);
+                    addMessageToChat('ai', result.reply);
+                }
+            } catch (e) {
+                console.error('❌ Send message error:', e);
+                const typingElement = document.getElementById(typingId);
+                if (typingElement) {
+                    typingElement.remove();
+                }
+                addMessageToChat('ai', `Error: ${e.message}`);
+                showStatus('Failed to send message: ' + e.message, 'error');
+            }
+        }
+        
+        function addMessageToChat(sender, message) {
+            console.log(`💬 Adding ${sender} message:`, message);
+            const chatMessages = document.getElementById('chatMessages');
+            const messageId = 'msg_' + Date.now();
+            const messageClass = sender === 'user' ? 'user-message' : 'ai-message';
+            const senderLabel = sender === 'user' ? 'You' : 'AI Assistant';
+            
+            const messageDiv = document.createElement('div');
+            messageDiv.id = messageId;
+            messageDiv.className = `message ${messageClass}`;
+            messageDiv.innerHTML = `<strong>${senderLabel}:</strong> ${message}`;
+            
+            chatMessages.appendChild(messageDiv);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+            
+            return messageId;
+        }
+        
+        async function loadChatHistory() {
+            if (!chatSession) return;
+            
+            console.log('📚 Loading chat history for session:', chatSession);
+            try {
+                const result = await apiCall(`/chat/history/${chatSession}`);
+                if (result.history) {
+                    const chatMessages = document.getElementById('chatMessages');
+                    // Clear existing messages except welcome message
+                    const welcomeMsg = chatMessages.children[0];
+                    chatMessages.innerHTML = '';
+                    chatMessages.appendChild(welcomeMsg);
+                    
+                    // Add history messages
+                    result.history.forEach(msg => {
+                        addMessageToChat(msg.sender, msg.message);
+                    });
+                }
+            } catch (e) {
+                console.error('Failed to load chat history:', e);
+            }
+        }
+        
+        // NEW: Test D-ID Function
+        async function testDID() {
+            console.log('🤖 Testing D-ID API...');
+            showStatus('Testing D-ID API...', 'connecting');
+            
+            try {
+                const result = await apiCall('/chat/message', 'POST', {
+                    session_id: chatSession,
+                    message: "Hello, this is a test message for D-ID avatar",
+                    use_avatar: true
+                });
+                
+                if (result.avatar_generating) {
+                    showStatus('D-ID avatar generation started! Check server console for details.', 'success');
+                } else {
+                    showStatus('D-ID avatar generation failed. Check your API key.', 'error');
+                }
+            } catch (e) {
+                showStatus('D-ID test failed: ' + e.message, 'error');
+            }
+        }
+        
+        // NEW: Video Chat Function
+        function startVideoChat() {
+            console.log('🎥 Starting video chat...');
+            
+            if (!chatSession) {
+                showStatus('Please start a text chat session first', 'error');
+                return;
+            }
+            
+            if (!currentOffice || !currentUser || !authToken) {
+                showStatus('Missing session data for video chat', 'error');
+                return;
+            }
+            
+            // Store session data for video chat
+            localStorage.setItem('chatSession', chatSession);
+            localStorage.setItem('authToken', authToken);
+            localStorage.setItem('currentUser', JSON.stringify(currentUser));
+            localStorage.setItem('currentOffice', JSON.stringify(currentOffice));
+            
+            // Open video chat in new window
+            const videoWindow = window.open(
+                `/video-chat?session=${chatSession}`, 
+                'videochat', 
+                'width=1400,height=900,scrollbars=yes,resizable=yes'
+            );
+            
+            if (!videoWindow) {
+                showStatus('Please allow popups to open video chat', 'error');
+            } else {
+                showStatus('Video chat opened in new window', 'success');
+            }
+        }
+        
+        // Initialize D-ID integration placeholder
+        function initializeAvatar() {
+            console.log('🤖 Initializing avatar placeholder');
+            const avatarPlaceholder = document.getElementById('avatarPlaceholder');
+            avatarPlaceholder.innerHTML = `
+                <div style="text-align: center;">
+                    <div style="font-size: 48px; margin-bottom: 10px;">🤖</div>
+                    <div>D-ID Avatar</div>
+                    <div style="font-size: 12px; opacity: 0.7;">Start video chat for avatar interaction</div>
+                </div>
+            `;
+        }
+        
+        // Event listeners setup
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('🎯 DOM loaded, setting up event listeners');
+            
+            const sendBtn = document.getElementById('sendBtn');
+            const messageInput = document.getElementById('messageInput');
+            
+            console.log('Send button element:', sendBtn);
+            console.log('Message input element:', messageInput);
+            
+            if (sendBtn) {
+                sendBtn.addEventListener('click', function(e) {
+                    console.log('🔘 Send button clicked!');
+                    e.preventDefault();
+                    sendMessage();
+                });
+                console.log('✅ Send button click listener added');
+            } else {
+                console.error('❌ Send button not found!');
+            }
+            
+            if (messageInput) {
+                messageInput.addEventListener('keypress', function(e) {
+                    console.log('⌨️ Key pressed:', e.key);
+                    if (e.key === 'Enter') {
+                        console.log('↩️ Enter key pressed!');
+                        e.preventDefault();
+                        sendMessage();
+                    }
+                });
+                console.log('✅ Message input keypress listener added');
+            } else {
+                console.error('❌ Message input not found!');
+            }
+        });
+        
+        // Initialize the interface
+        initializeAvatar();
+        showStatus('Ready to test! Please login to begin.');
+        console.log('🎉 OfficeHours AI Frontend Ready');
+    </script>
+</body>
+</html>

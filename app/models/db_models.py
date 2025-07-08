@@ -9,6 +9,8 @@ class User(db.Model):
     role = db.Column(db.String(10), nullable=False)  # 'teacher' or 'student'
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
+    # REMOVED email verification fields for now
+    
     # Relationships
     owned_offices = db.relationship('Office', backref='owner', lazy=True)
     enrollments = db.relationship('Enrollment', backref='user', lazy=True)
@@ -63,3 +65,4 @@ class ChatMessage(db.Model):
     sender = db.Column(db.String(10), nullable=False)  # 'user' or 'ai'
     message = db.Column(db.Text, nullable=False)
     timestamp = db.Column(db.DateTime, default=datetime.utcnow)
+    video_url = db.Column(db.String(500), nullable=True)

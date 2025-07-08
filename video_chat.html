@@ -1,0 +1,961 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OfficeHours AI - Video Call</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #1a1a1a;
+            color: white;
+            overflow: hidden;
+        }
+        
+        .video-call-container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            background: #1a1a1a;
+        }
+        
+        /* Main AI Video (full screen like Zoom) */
+        .main-video-area {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #2a2a2a;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        #aiVideo {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        
+        .ai-placeholder {
+            text-align: center;
+            color: #fff;
+            font-size: 24px;
+        }
+        
+        .ai-placeholder .avatar-icon {
+            font-size: 120px;
+            margin-bottom: 20px;
+            display: block;
+            color: #4facfe;
+        }
+        
+        .ai-name-label {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 16px;
+            font-weight: 600;
+        }
+        
+        /* User video (small, top-right corner like Zoom) */
+        .user-video-overlay {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            width: 300px;
+            height: 200px;
+            background: #333;
+            border-radius: 15px;
+            overflow: hidden;
+            border: 3px solid #4facfe;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            z-index: 10;
+        }
+        
+        #userVideo {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transform: scaleX(-1); /* Mirror effect */
+        }
+        
+        .user-name-label {
+            position: absolute;
+            bottom: 8px;
+            left: 8px;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 4px 8px;
+            border-radius: 10px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        
+        /* Speaking indicators */
+        .speaking-indicator {
+            position: absolute;
+            top: 8px;
+            left: 8px;
+            background: #28a745;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 10px;
+            font-size: 11px;
+            animation: pulse 1.5s infinite;
+        }
+        
+        .ai-speaking-indicator {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: #28a745;
+            color: white;
+            padding: 8px 16px;
+            border-radius: 15px;
+            font-size: 14px;
+            animation: pulse 1.5s infinite;
+        }
+        
+        /* Video generating indicator */
+        .video-generating-indicator {
+            position: absolute;
+            top: 60px;
+            left: 20px;
+            background: #ffc107;
+            color: #000;
+            padding: 8px 16px;
+            border-radius: 15px;
+            font-size: 14px;
+            animation: pulse 1.5s infinite;
+        }
+        
+        @keyframes pulse {
+            0% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.7; transform: scale(1.05); }
+            100% { opacity: 1; transform: scale(1); }
+        }
+        
+        /* Control bar at bottom (like Zoom) */
+        .control-bar {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: linear-gradient(180deg, transparent 0%, rgba(0, 0, 0, 0.8) 100%);
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            z-index: 20;
+        }
+        
+        .control-btn {
+            width: 60px;
+            height: 60px;
+            border: none;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 24px;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
+        
+        .control-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+        }
+        
+        .control-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .btn-mic { background: #28a745; }
+        .btn-mic.muted { background: #dc3545; }
+        .btn-camera { background: #007bff; }
+        .btn-camera.off { background: #6c757d; }
+        .btn-voice { background: #ffc107; color: #000; }
+        .btn-voice.active { background: #28a745; color: white; }
+        .btn-end { background: #dc3545; }
+        .btn-start { background: #28a745; }
+        
+        /* Transcript overlay (can be toggled) */
+        .transcript-overlay {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            width: 400px;
+            max-height: 300px;
+            background: rgba(0, 0, 0, 0.9);
+            border-radius: 15px;
+            padding: 15px;
+            overflow-y: auto;
+            backdrop-filter: blur(10px);
+            z-index: 15;
+            transition: opacity 0.3s;
+        }
+        
+        .transcript-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #444;
+        }
+        
+        .transcript-toggle {
+            background: none;
+            border: none;
+            color: white;
+            cursor: pointer;
+            font-size: 18px;
+        }
+        
+        .transcript-message {
+            margin-bottom: 12px;
+            padding: 8px 12px;
+            border-radius: 10px;
+            font-size: 14px;
+        }
+        
+        .user-transcript {
+            background: rgba(0, 123, 255, 0.3);
+            text-align: right;
+        }
+        
+        .ai-transcript {
+            background: rgba(40, 167, 69, 0.3);
+        }
+        
+        .message-time {
+            font-size: 11px;
+            opacity: 0.7;
+            margin-bottom: 4px;
+        }
+        
+        /* Status indicator */
+        .status-indicator {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.9);
+            padding: 20px 40px;
+            border-radius: 15px;
+            text-align: center;
+            z-index: 30;
+            transition: opacity 0.3s;
+        }
+        
+        .status-connecting { border: 2px solid #ffc107; }
+        .status-connected { border: 2px solid #28a745; }
+        .status-error { border: 2px solid #dc3545; }
+        
+        .hidden { display: none; }
+        
+        /* Capture canvas (hidden) for sending video frames to AI */
+        #captureCanvas {
+            display: none;
+        }
+        
+        /* Audio visualization */
+        .audio-visualizer {
+            position: absolute;
+            bottom: 10px;
+            right: 10px;
+            display: flex;
+            gap: 2px;
+            height: 20px;
+            align-items: flex-end;
+        }
+        
+        .audio-bar {
+            width: 2px;
+            background: #4facfe;
+            border-radius: 1px;
+            transition: height 0.1s;
+        }
+    </style>
+</head>
+<body>
+    <div class="video-call-container">
+        <!-- Main AI Video Area -->
+        <div class="main-video-area">
+            <div class="ai-placeholder" id="aiPlaceholder">
+                <span class="avatar-icon">🤖</span>
+                <div>AI Teaching Assistant</div>
+                <div style="font-size: 16px; margin-top: 10px; opacity: 0.8;">Ready for intelligent conversation</div>
+            </div>
+            <video id="aiVideo" autoplay playsinline class="hidden"></video>
+            <div class="ai-name-label">AI Assistant</div>
+            <div class="ai-speaking-indicator hidden" id="aiSpeaking">🤖 AI is speaking</div>
+            <div class="video-generating-indicator hidden" id="videoGenerating">🎬 Generating avatar video...</div>
+        </div>
+        
+        <!-- User Video Overlay (top-right corner) -->
+        <div class="user-video-overlay">
+            <video id="userVideo" autoplay muted playsinline></video>
+            <div class="user-name-label" id="userNameLabel">You</div>
+            <div class="speaking-indicator hidden" id="userSpeaking">🎤</div>
+            <div class="audio-visualizer" id="audioVisualizer"></div>
+        </div>
+        
+        <!-- Transcript Overlay -->
+        <div class="transcript-overlay" id="transcriptOverlay">
+            <div class="transcript-header">
+                <span style="font-weight: bold;">💬 Live Transcript</span>
+                <button class="transcript-toggle" onclick="toggleTranscript()">✕</button>
+            </div>
+            <div id="transcriptMessages"></div>
+        </div>
+        
+        <!-- Control Bar -->
+        <div class="control-bar">
+            <button class="control-btn btn-start" id="startBtn" onclick="startVideoCall()" title="Start Call">
+                📹
+            </button>
+            
+            <button class="control-btn btn-mic" id="micBtn" onclick="toggleMic()" disabled title="Microphone">
+                🎤
+            </button>
+            
+            <button class="control-btn btn-camera" id="cameraBtn" onclick="toggleCamera()" disabled title="Camera">
+                📷
+            </button>
+            
+            <button class="control-btn btn-voice" id="voiceBtn" onclick="toggleVoiceMode()" disabled title="Voice Mode">
+                🗣️
+            </button>
+            
+            <button class="control-btn btn-end" id="endBtn" onclick="endCall()" disabled title="End Call">
+                📞
+            </button>
+        </div>
+        
+        <!-- Status Indicator -->
+        <div class="status-indicator status-connecting" id="statusIndicator">
+            Ready to start video call
+        </div>
+        
+        <!-- Hidden canvas for capturing video frames -->
+        <canvas id="captureCanvas" width="640" height="480"></canvas>
+    </div>
+
+    <script>
+        // Global state
+        let userStream = null;
+        let micEnabled = true;
+        let cameraEnabled = true;
+        let voiceModeEnabled = false;
+        let transcriptVisible = true;
+        let chatSession = null;
+        let currentUser = null;
+        let authToken = null;
+        let currentOffice = null;
+        let captureInterval = null;
+        
+        // Get session data
+        chatSession = localStorage.getItem('chatSession');
+        authToken = localStorage.getItem('authToken');
+        currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
+        currentOffice = JSON.parse(localStorage.getItem('currentOffice') || '{}');
+        
+        const API_BASE = 'http://localhost:5001';
+        
+        // Speech Recognition
+        let recognition = null;
+        if ('webkitSpeechRecognition' in window) {
+            recognition = new webkitSpeechRecognition();
+            recognition.continuous = true;
+            recognition.interimResults = true;
+            recognition.lang = 'en-US';
+        }
+        
+        // Speech Synthesis for AI responses
+        let speechSynthesis = window.speechSynthesis;
+        
+        console.log('🎥 Zoom-style Video Chat Loaded');
+        
+        function updateStatus(message, type = 'connecting') {
+            const statusIndicator = document.getElementById('statusIndicator');
+            statusIndicator.textContent = message;
+            statusIndicator.className = `status-indicator status-${type}`;
+            
+            // Auto-hide status after 3 seconds if connected
+            if (type === 'connected') {
+                setTimeout(() => {
+                    statusIndicator.style.opacity = '0';
+                }, 3000);
+            } else {
+                statusIndicator.style.opacity = '1';
+            }
+        }
+        
+        // NEW: Function to check for avatar videos
+        async function checkForAvatarVideo(messageId) {
+            try {
+                const response = await fetch(`${API_BASE}/chat/message/${messageId}/avatar`, {
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`
+                    }
+                });
+                
+                const result = await response.json();
+                
+                if (result.video_ready && result.video_url) {
+                    console.log('🎬 Avatar video ready:', result.video_url);
+                    displayAvatarVideo(result.video_url);
+                    return true;
+                }
+                
+                return false;
+            } catch (error) {
+                console.error('Error checking avatar video:', error);
+                return false;
+            }
+        }
+
+        // NEW: Function to display the D-ID avatar video
+        function displayAvatarVideo(videoUrl) {
+            console.log('📺 Displaying avatar video:', videoUrl);
+            
+            // Hide the placeholder
+            const placeholder = document.getElementById('aiPlaceholder');
+            if (placeholder) {
+                placeholder.classList.add('hidden');
+            }
+            
+            // Hide video generating indicator
+            const videoGenerating = document.getElementById('videoGenerating');
+            if (videoGenerating) {
+                videoGenerating.classList.add('hidden');
+            }
+            
+            // Show and set the video
+            const aiVideo = document.getElementById('aiVideo');
+            if (aiVideo) {
+                aiVideo.src = videoUrl;
+                aiVideo.classList.remove('hidden');
+                aiVideo.play();
+                
+                // Show AI speaking indicator
+                document.getElementById('aiSpeaking').classList.remove('hidden');
+                
+                // Hide AI speaking indicator when video ends
+                aiVideo.onended = function() {
+                    document.getElementById('aiSpeaking').classList.add('hidden');
+                    // Optionally hide video and show placeholder again
+                    setTimeout(() => {
+                        aiVideo.classList.add('hidden');
+                        placeholder.classList.remove('hidden');
+                    }, 1000);
+                };
+            }
+        }
+        
+        async function startVideoCall() {
+            console.log('🎥 Starting video call...');
+            updateStatus('Requesting camera and microphone access...', 'connecting');
+            
+            if (!chatSession) {
+                updateStatus('No chat session found', 'error');
+                alert('Please start a chat session in the main window first.');
+                return;
+            }
+            
+            try {
+                // Request camera and microphone
+                userStream = await navigator.mediaDevices.getUserMedia({
+                    video: {
+                        width: { ideal: 1280 },
+                        height: { ideal: 720 },
+                        facingMode: 'user'
+                    },
+                    audio: {
+                        echoCancellation: true,
+                        noiseSuppression: true,
+                        sampleRate: 44100
+                    }
+                });
+                
+                // Connect user video
+                const userVideo = document.getElementById('userVideo');
+                userVideo.srcObject = userStream;
+                
+                // Update user name
+                document.getElementById('userNameLabel').textContent = currentUser.name || 'You';
+                
+                // Enable controls
+                document.getElementById('startBtn').disabled = true;
+                document.getElementById('micBtn').disabled = false;
+                document.getElementById('cameraBtn').disabled = false;
+                document.getElementById('voiceBtn').disabled = false;
+                document.getElementById('endBtn').disabled = false;
+                
+                updateStatus('Connected - Voice mode ready', 'connected');
+                
+                // Setup audio visualization
+                setupAudioVisualization();
+                
+                // Setup speech recognition
+                if (recognition) {
+                    setupSpeechRecognition();
+                }
+                
+                // Start capturing video frames for AI vision
+                startVideoCapture();
+                
+                console.log('✅ Video call started successfully');
+                
+            } catch (error) {
+                console.error('❌ Error starting video call:', error);
+                updateStatus('Failed to access camera/microphone', 'error');
+                
+                if (error.name === 'NotAllowedError') {
+                    alert('Camera and microphone access is required. Please allow access and try again.');
+                } else if (error.name === 'NotFoundError') {
+                    alert('No camera or microphone found. Please check your devices.');
+                } else {
+                    alert('Error starting video call: ' + error.message);
+                }
+            }
+        }
+        
+        function startVideoCapture() {
+            const canvas = document.getElementById('captureCanvas');
+            const ctx = canvas.getContext('2d');
+            const userVideo = document.getElementById('userVideo');
+            
+            // Capture a frame every 5 seconds for AI vision
+            captureInterval = setInterval(() => {
+                if (userVideo.videoWidth > 0) {
+                    canvas.width = userVideo.videoWidth;
+                    canvas.height = userVideo.videoHeight;
+                    ctx.drawImage(userVideo, 0, 0);
+                    
+                    // Convert to base64 for sending to AI
+                    const imageData = canvas.toDataURL('image/jpeg', 0.8);
+                    console.log('📸 Captured video frame for AI vision');
+                    // We'll use this in the sendVoiceMessage function
+                }
+            }, 5000);
+        }
+        
+        function toggleMic() {
+            if (!userStream) return;
+            
+            const audioTracks = userStream.getAudioTracks();
+            micEnabled = !micEnabled;
+            
+            audioTracks.forEach(track => {
+                track.enabled = micEnabled;
+            });
+            
+            const micBtn = document.getElementById('micBtn');
+            micBtn.className = `control-btn ${micEnabled ? 'btn-mic' : 'btn-mic muted'}`;
+            micBtn.innerHTML = micEnabled ? '🎤' : '🔇';
+            
+            console.log(`🎤 Microphone ${micEnabled ? 'enabled' : 'disabled'}`);
+        }
+        
+        function toggleCamera() {
+            if (!userStream) return;
+            
+            const videoTracks = userStream.getVideoTracks();
+            cameraEnabled = !cameraEnabled;
+            
+            videoTracks.forEach(track => {
+                track.enabled = cameraEnabled;
+            });
+            
+            const cameraBtn = document.getElementById('cameraBtn');
+            cameraBtn.className = `control-btn ${cameraEnabled ? 'btn-camera' : 'btn-camera off'}`;
+            cameraBtn.innerHTML = cameraEnabled ? '📷' : '📷';
+            
+            // Show/hide user video overlay
+            const userVideoOverlay = document.querySelector('.user-video-overlay');
+            userVideoOverlay.style.opacity = cameraEnabled ? '1' : '0.3';
+            
+            console.log(`📷 Camera ${cameraEnabled ? 'enabled' : 'disabled'}`);
+        }
+        
+        function toggleVoiceMode() {
+            voiceModeEnabled = !voiceModeEnabled;
+            
+            const voiceBtn = document.getElementById('voiceBtn');
+            voiceBtn.className = `control-btn ${voiceModeEnabled ? 'btn-voice active' : 'btn-voice'}`;
+            
+            if (voiceModeEnabled && recognition) {
+                recognition.start();
+                console.log('🗣️ Voice mode enabled - listening...');
+                updateStatus('Listening... speak to the AI', 'connected');
+            } else if (recognition) {
+                recognition.stop();
+                console.log('🗣️ Voice mode disabled');
+                updateStatus('Voice mode disabled', 'connecting');
+            }
+        }
+        
+        function toggleTranscript() {
+            transcriptVisible = !transcriptVisible;
+            const transcriptOverlay = document.getElementById('transcriptOverlay');
+            transcriptOverlay.style.display = transcriptVisible ? 'block' : 'none';
+        }
+        
+        function setupAudioVisualization() {
+            const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            const analyser = audioContext.createAnalyser();
+            const source = audioContext.createMediaStreamSource(userStream);
+            
+            source.connect(analyser);
+            analyser.fftSize = 256;
+            
+            const bufferLength = analyser.frequencyBinCount;
+            const dataArray = new Uint8Array(bufferLength);
+            
+            // Create visualizer bars
+            const visualizer = document.getElementById('audioVisualizer');
+            for (let i = 0; i < 10; i++) {
+                const bar = document.createElement('div');
+                bar.className = 'audio-bar';
+                bar.style.height = '2px';
+                visualizer.appendChild(bar);
+            }
+            
+            function updateVisualization() {
+                analyser.getByteFrequencyData(dataArray);
+                const bars = visualizer.children;
+                
+                for (let i = 0; i < bars.length; i++) {
+                    const barHeight = Math.max(2, (dataArray[i] / 255) * 20);
+                    bars[i].style.height = barHeight + 'px';
+                }
+                
+                requestAnimationFrame(updateVisualization);
+            }
+            
+            updateVisualization();
+        }
+        
+        function setupSpeechRecognition() {
+            if (!recognition) {
+                console.log('❌ Speech recognition not supported');
+                return;
+            }
+            
+            recognition.onresult = function(event) {
+                let finalTranscript = '';
+                
+                for (let i = event.resultIndex; i < event.results.length; i++) {
+                    if (event.results[i].isFinal) {
+                        finalTranscript += event.results[i][0].transcript;
+                    }
+                }
+                
+                if (finalTranscript.trim()) {
+                    console.log('🗣️ Speech recognized:', finalTranscript);
+                    sendVoiceMessage(finalTranscript.trim());
+                }
+            };
+            
+            recognition.onstart = function() {
+                document.getElementById('userSpeaking').classList.remove('hidden');
+            };
+            
+            recognition.onend = function() {
+                document.getElementById('userSpeaking').classList.add('hidden');
+                
+                // Restart if voice mode is still enabled
+                if (voiceModeEnabled) {
+                    setTimeout(() => {
+                        recognition.start();
+                    }, 100);
+                }
+            };
+            
+            recognition.onerror = function(event) {
+                console.error('Speech recognition error:', event.error);
+            };
+        }
+        
+        // UPDATED: Enhanced sendVoiceMessage to handle avatar videos
+        async function sendVoiceMessage(transcript) {
+            console.log('📤 Sending voice message with vision:', transcript);
+            addTranscriptMessage('user', transcript);
+            
+            // Capture current video frame for AI vision
+            const canvas = document.getElementById('captureCanvas');
+            const userVideo = document.getElementById('userVideo');
+            let imageData = null;
+            
+            if (cameraEnabled && userVideo.videoWidth > 0) {
+                const ctx = canvas.getContext('2d');
+                canvas.width = userVideo.videoWidth;
+                canvas.height = userVideo.videoHeight;
+                ctx.drawImage(userVideo, 0, 0);
+                imageData = canvas.toDataURL('image/jpeg', 0.8);
+            }
+            
+            try {
+                const requestBody = {
+                    session_id: chatSession,
+                    message: transcript,
+                    use_avatar: true,  // Request avatar generation
+                    video_frame: imageData
+                };
+                
+                const response = await fetch(`${API_BASE}/chat/message`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${authToken}`
+                    },
+                    body: JSON.stringify(requestBody)
+                });
+                
+                const result = await response.json();
+                
+                if (result.error) {
+                    console.error('API error:', result.error);
+                    addTranscriptMessage('ai', 'Sorry, I encountered an error: ' + result.error);
+                } else {
+                    console.log('✅ AI response:', result.reply);
+                    addTranscriptMessage('ai', result.reply);
+                    
+                    // Check for avatar video if one was requested
+                    if (result.message_id && result.avatar_generating) {
+                        console.log('🎬 Avatar generating, checking for video...');
+                        
+                        // Show video generating indicator
+                        document.getElementById('videoGenerating').classList.remove('hidden');
+                        
+                        // Poll for the video every 2 seconds for up to 30 seconds
+                        let attempts = 0;
+                        const maxAttempts = 15;
+                        
+                        const checkVideo = setInterval(async () => {
+                            attempts++;
+                            console.log(`🔍 Checking for video, attempt ${attempts}/${maxAttempts}`);
+                            
+                            const videoReady = await checkForAvatarVideo(result.message_id);
+                            
+                            if (videoReady || attempts >= maxAttempts) {
+                                clearInterval(checkVideo);
+                                document.getElementById('videoGenerating').classList.add('hidden');
+                                
+                                if (!videoReady) {
+                                    console.log('⏱️ Video check timed out, using TTS fallback');
+                                    speakAIResponse(result.reply);
+                                }
+                            }
+                        }, 2000);
+                    } else {
+                        // No avatar requested, use TTS
+                        speakAIResponse(result.reply);
+                    }
+                }
+                
+            } catch (error) {
+                console.error('❌ Error sending message:', error);
+                addTranscriptMessage('ai', 'Sorry, I encountered a connection error.');
+            }
+        }
+        
+        function speakAIResponse(text) {
+            // First try OpenAI TTS if available, fallback to browser TTS
+            if (authToken) {
+                try {
+                    // Use OpenAI's TTS API for better quality
+                    fetch(`${API_BASE}/chat/tts`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${authToken}`
+                        },
+                        body: JSON.stringify({
+                            text: text,
+                            voice: 'alloy'  // OpenAI voice
+                        })
+                    })
+                    .then(response => response.blob())
+                    .then(blob => {
+                        const audioUrl = URL.createObjectURL(blob);
+                        const audio = new Audio(audioUrl);
+                        audio.play();
+                        console.log('🔊 Playing OpenAI TTS audio');
+                        
+                        // Show AI speaking indicator during TTS
+                        document.getElementById('aiSpeaking').classList.remove('hidden');
+                        audio.onended = () => {
+                            document.getElementById('aiSpeaking').classList.add('hidden');
+                        };
+                    })
+                    .catch(error => {
+                        console.log('OpenAI TTS failed, using browser TTS:', error);
+                        useBrowserTTS(text);
+                    });
+                } catch (error) {
+                    console.log('OpenAI TTS error, using browser TTS:', error);
+                    useBrowserTTS(text);
+                }
+            } else {
+                useBrowserTTS(text);
+            }
+        }
+        
+        function useBrowserTTS(text) {
+            // Stop any existing speech
+            speechSynthesis.cancel();
+            
+            const utterance = new SpeechSynthesisUtterance(text);
+            utterance.rate = 1.0;
+            utterance.pitch = 1.1;
+            utterance.volume = 0.9;
+            
+            // Show AI speaking indicator
+            document.getElementById('aiSpeaking').classList.remove('hidden');
+            
+            utterance.onend = function() {
+                console.log('🔊 AI speech finished');
+                document.getElementById('aiSpeaking').classList.add('hidden');
+            };
+            
+            // Load voices if not loaded
+            if (speechSynthesis.getVoices().length === 0) {
+                speechSynthesis.addEventListener('voiceschanged', function() {
+                    setVoiceAndSpeak(utterance);
+                });
+            } else {
+                setVoiceAndSpeak(utterance);
+            }
+        }
+        
+        function setVoiceAndSpeak(utterance) {
+            const voices = speechSynthesis.getVoices();
+            
+            // Try to find the best available voice
+            const preferredVoices = [
+                'Samantha',
+                'Karen',
+                'Moira',
+                'Tessa',
+                'Veena',
+                'Fiona'
+            ];
+            
+            let selectedVoice = null;
+            
+            // Look for preferred voices
+            for (const voiceName of preferredVoices) {
+                selectedVoice = voices.find(voice => voice.name.includes(voiceName));
+                if (selectedVoice) break;
+            }
+            
+            // Fallback to any English female voice
+            if (!selectedVoice) {
+                selectedVoice = voices.find(voice => 
+                    voice.lang.startsWith('en') && 
+                    (voice.name.toLowerCase().includes('female') || 
+                     voice.name.toLowerCase().includes('woman'))
+                );
+            }
+            
+            // Final fallback to any English voice
+            if (!selectedVoice) {
+                selectedVoice = voices.find(voice => voice.lang.startsWith('en'));
+            }
+            
+            if (selectedVoice) {
+                utterance.voice = selectedVoice;
+                console.log(`🔊 Using voice: ${selectedVoice.name}`);
+            }
+            
+            speechSynthesis.speak(utterance);
+            console.log('🔊 AI speaking:', utterance.text.substring(0, 50) + '...');
+        }
+        
+        function addTranscriptMessage(sender, message) {
+            const transcriptMessages = document.getElementById('transcriptMessages');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `transcript-message ${sender}-transcript`;
+            
+            const timestamp = new Date().toLocaleTimeString();
+            const senderLabel = sender === 'user' ? currentUser.name || 'You' : 'AI Assistant';
+            
+            messageDiv.innerHTML = `
+                <div class="message-time">${senderLabel} - ${timestamp}</div>
+                <div>${message}</div>
+            `;
+            
+            transcriptMessages.appendChild(messageDiv);
+            transcriptMessages.scrollTop = transcriptMessages.scrollHeight;
+        }
+        
+        function endCall() {
+            console.log('📞 Ending video call...');
+            
+            // Stop all tracks
+            if (userStream) {
+                userStream.getTracks().forEach(track => track.stop());
+                userStream = null;
+            }
+            
+            // Stop speech recognition
+            if (recognition && voiceModeEnabled) {
+                recognition.stop();
+            }
+            
+            // Stop video capture
+            if (captureInterval) {
+                clearInterval(captureInterval);
+            }
+            
+            // Stop any ongoing speech
+            speechSynthesis.cancel();
+            
+            updateStatus('Call ended', 'error');
+            
+            // Close window
+            setTimeout(() => {
+                window.close();
+            }, 1000);
+        }
+        
+        // Initialize
+        updateStatus('Ready to start video call', 'connecting');
+        
+        // Add welcome message
+        setTimeout(() => {
+            addTranscriptMessage('ai', 'Hello! I\'m your AI teaching assistant. Start the video call and enable voice mode to have a natural conversation. I can see your video and respond with speech and avatar videos!');
+        }, 1000);
+        
+        // Handle page unload
+        window.addEventListener('beforeunload', function() {
+            if (userStream) {
+                userStream.getTracks().forEach(track => track.stop());
+            }
+            if (captureInterval) {
+                clearInterval(captureInterval);
+            }
+        });
+        
+        console.log('🎉 Zoom-style Video Chat Ready with D-ID Avatar Support');
+    </script>
+</body>
+</html>
+            

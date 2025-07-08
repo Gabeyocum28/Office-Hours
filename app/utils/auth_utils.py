@@ -1,5 +1,7 @@
 import jwt
 import datetime
+import secrets
+import string
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask import current_app
 
@@ -24,3 +26,18 @@ def decode_token(token):
         return None
     except jwt.InvalidTokenError:
         return None
+
+def generate_verification_token(length=32):
+    """Generate a secure random token for email verification"""
+    alphabet = string.ascii_letters + string.digits
+    return ''.join(secrets.choice(alphabet) for _ in range(length))
+
+def generate_token_expiry(hours=24):
+    """Generate token expiry time (default 24 hours from now)"""
+    return datetime.datetime.utcnow() + datetime.timedelta(hours=hours)
+
+def is_token_expired(expiry_time):
+    """Check if a token has expired"""
+    if not expiry_time:
+        return True
+    return datetime.datetime.utcnow() > expiry_time
