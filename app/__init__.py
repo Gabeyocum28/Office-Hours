@@ -18,8 +18,15 @@ migrate = None  # Will initialize later
 def create_app(testing=False):
     app = Flask(__name__)
 
-    # Basic configuration
+    # Basic configuration with performance optimizations
     app.config["SECRET_KEY"] = os.getenv("SECRET_KEY", "dev-secret-key")
+    
+    # Performance optimizations
+    app.config["SEND_FILE_MAX_AGE_DEFAULT"] = 31536000  # 1 year cache for static files
+    app.config["PERMANENT_SESSION_LIFETIME"] = 1800  # 30 minutes session timeout
+    app.config["SESSION_COOKIE_HTTPONLY"] = True
+    app.config["SESSION_COOKIE_SECURE"] = False  # Set to True in production with HTTPS
+    app.config["WTF_CSRF_TIME_LIMIT"] = None  # Disable CSRF timeout for better UX
     
     if testing:
         # Use in-memory SQLite database for testing
@@ -38,8 +45,12 @@ def create_app(testing=False):
     # JWT configuration
     app.config["JWT_SECRET_KEY"] = os.getenv("JWT_SECRET_KEY", "jwt-secret-key")
 
-    # Initialize extensions with app
-    CORS(app)
+    # Initialize extensions with app and performance settings
+    CORS(app, 
+         origins=['http://localhost:5001', 'http://127.0.0.1:5001'],  # Specific origins for security
+         supports_credentials=True,
+         max_age=86400)  # Cache preflight requests for 24 hours
+    
     db.init_app(app)
     jwt.init_app(app)
 

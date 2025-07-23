@@ -3,959 +3,1634 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>OfficeHours AI - Video Call</title>
+    <title>OfficeHours AI - Enhanced Video Call</title>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
+        /* CSS styles remain the same */
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #1a1a1a; color: white; overflow: hidden; }
+        .video-call-container { position: relative; width: 100vw; height: 100vh; background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%); }
+        .main-video-area { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; }
+        #threejs-container { width: 100% !important; height: 100% !important; background: radial-gradient(circle at center, #2a2a2a 0%, #1a1a1a 100%); }
+        .loading-overlay { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; color: white; font-size: 18px; z-index: 5; }
+        .loading-spinner { width: 40px; height: 40px; border: 4px solid #333; border-top: 4px solid #4facfe; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 20px; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .ai-name-label { position: absolute; bottom: 80px; left: 20px; background: rgba(0, 0, 0, 0.8); backdrop-filter: blur(10px); padding: 12px 20px; border-radius: 25px; font-size: 16px; font-weight: 600; border: 1px solid rgba(255, 255, 255, 0.1); box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3); }
+        /* Smaller user video overlay */
+        .user-video-overlay { 
+            position: absolute; 
+            top: 20px; 
+            right: 20px; 
+            width: 200px; /* Made smaller */
+            height: 150px; /* Made smaller */
+            background: #333; 
+            border-radius: 20px; 
+            overflow: hidden; 
+            border: 3px solid #4facfe; 
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.5); 
+            z-index: 10; 
+            transition: all 0.3s ease; 
         }
-        
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: #1a1a1a;
-            color: white;
-            overflow: hidden;
+        .user-video-overlay:hover { transform: scale(1.05); border-color: #00f2fe; }
+        #userVideo { width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); }
+        .user-name-label { position: absolute; bottom: 10px; left: 10px; background: rgba(0, 0, 0, 0.8); padding: 6px 12px; border-radius: 15px; font-size: 14px; font-weight: 600; backdrop-filter: blur(5px); }
+        .speaking-indicator { position: absolute; top: 10px; left: 10px; background: #28a745; color: white; padding: 6px 12px; border-radius: 15px; font-size: 12px; font-weight: bold; animation: pulse 1.5s infinite; box-shadow: 0 4px 15px rgba(40, 167, 69, 0.4); }
+        .ai-speaking-indicator { position: absolute; top: 20px; left: 20px; background: linear-gradient(135deg, #28a745 0%, #20c997 100%); color: white; padding: 12px 20px; border-radius: 25px; font-size: 16px; font-weight: bold; animation: pulse 1.5s infinite; box-shadow: 0 8px 25px rgba(40, 167, 69, 0.4); border: 1px solid rgba(255, 255, 255, 0.2); }
+        .processing-indicator { position: absolute; top: 70px; left: 20px; background: linear-gradient(135deg, #ffc107 0%, #ff9800 100%); color: #000; padding: 10px 18px; border-radius: 20px; font-size: 14px; font-weight: bold; animation: pulse 1.2s infinite; box-shadow: 0 6px 20px rgba(255, 193, 7, 0.4); }
+        @keyframes pulse { 0% { opacity: 1; transform: scale(1); } 50% { opacity: 0.8; transform: scale(1.05); } 100% { opacity: 1; transform: scale(1); } }
+        /* Smaller control bar with rounded rectangle buttons */
+        .control-bar { 
+            position: absolute; 
+            bottom: 0; 
+            left: 0; 
+            right: 0; 
+            background: linear-gradient(180deg, transparent 0%, rgba(0, 0, 0, 0.9) 70%); 
+            backdrop-filter: blur(20px); 
+            padding: 15px 20px; /* Reduced padding for smaller height */
+            display: flex; 
+            justify-content: center; 
+            align-items: center; 
+            gap: 30px; /* Increased gap for more spread out buttons */
+            z-index: 20; 
         }
-        
-        .video-call-container {
-            position: relative;
-            width: 100vw;
-            height: 100vh;
-            background: #1a1a1a;
+        .control-btn { 
+            width: 100px; /* Wider for rectangle */
+            height: 50px; /* Shorter for rectangle */
+            border: none; 
+            border-radius: 15px; /* Rounded corners for rectangle */
+            cursor: pointer; 
+            font-size: 24px; /* Slightly smaller font for rectangle */
+            transition: all 0.3s ease; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            position: relative; 
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3); 
+            backdrop-filter: blur(10px); 
         }
-        
-        /* Main AI Video (full screen like Zoom) */
-        .main-video-area {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: #2a2a2a;
-            display: flex;
-            align-items: center;
-            justify-content: center;
+        .control-btn:hover { transform: translateY(-5px); box-shadow: 0 15px 40px rgba(0, 0, 0, 0.4); }
+        .control-btn:active { transform: translateY(-2px); }
+        .control-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+        .btn-mic { background: linear-gradient(135deg, #28a745 0%, #20c997 100%); border: 2px solid rgba(255, 255, 255, 0.2); }
+        .btn-mic.muted { background: linear-gradient(135deg, #dc3545 0%, #c82333 100%); }
+        .btn-camera { background: linear-gradient(135deg, #007bff 0%, #0056b3 100%); border: 2px solid rgba(255, 255, 255, 0.2); }
+        .btn-camera.off { background: linear-gradient(135deg, #6c757d 0%, #545b62 100%); }
+        /* Adjusted chat toggle button to be emoji-only */
+        .btn-chat-toggle { 
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); 
+            color: white; 
+            border: 2px solid rgba(255, 255, 255, 0.3); 
+            font-size: 28px; /* Ensure emoji is large enough */
+            padding: 0; /* Remove padding to center emoji */
         }
+        .btn-end { background: linear-gradient(135deg, #dc3545 0%, #c82333 100%); border: 2px solid rgba(255, 255, 255, 0.2); }
+        .btn-start { background: linear-gradient(135deg, #28a745 0%, #20c997 100%); border: 2px solid rgba(255, 255, 255, 0.2); }
         
-        #aiVideo {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
+        .transcript-panel { 
+            position: absolute; 
+            top: 20px; 
+            left: 20px; 
+            width: 400px; 
+            max-height: 350px; 
+            background: rgba(0, 0, 0, 0.9); 
+            backdrop-filter: blur(15px); 
+            border-radius: 20px; 
+            border: 1px solid rgba(255, 255, 255, 0.1); 
+            overflow: hidden; 
+            z-index: 15; 
+            transition: all 0.3s ease; 
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5); 
         }
-        
-        .ai-placeholder {
-            text-align: center;
-            color: #fff;
-            font-size: 24px;
+        .transcript-header { display: flex; justify-content: space-between; align-items: center; padding: 15px 20px; background: rgba(79, 172, 254, 0.1); border-bottom: 1px solid rgba(255, 255, 255, 0.1); }
+        .transcript-header h3 { margin: 0; font-size: 16px; font-weight: 600; }
+        .transcript-toggle { background: none; border: none; color: white; cursor: pointer; font-size: 20px; padding: 5px; border-radius: 50%; transition: all 0.3s ease; }
+        .transcript-toggle:hover { background: rgba(255, 255, 255, 0.1); }
+        .transcript-messages { padding: 20px; max-height: 280px; overflow-y: auto; }
+        .transcript-message { margin-bottom: 15px; padding: 12px 16px; border-radius: 15px; font-size: 14px; line-height: 1.4; }
+        .user-transcript { background: rgba(0, 123, 255, 0.2); text-align: right; margin-left: 40px; border: 1px solid rgba(0, 123, 255, 0.3); }
+        .ai-transcript { background: rgba(40, 167, 69, 0.2); margin-right: 40px; border: 1px solid rgba(40, 167, 69, 0.3); }
+        .message-time { font-size: 11px; opacity: 0.7; margin-bottom: 5px; font-weight: 500; }
+        /* Smaller warning message in bottom right */
+        .status-indicator { 
+            position: absolute; 
+            bottom: 80px; /* Positioned above the control bar */
+            right: 20px; /* Aligned to the right */
+            left: auto; /* Remove left positioning */
+            transform: none; /* Removed transform for centering */
+            background: rgba(0, 0, 0, 0.95); 
+            backdrop-filter: blur(20px); 
+            padding: 10px 20px; /* Reduced padding */
+            border-radius: 10px; /* Smaller border-radius */
+            text-align: right; /* Align text right */
+            font-size: 14px; /* Smaller font size */
+            z-index: 30; 
+            transition: all 0.3s ease; 
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5); 
+            border: 2px solid; 
         }
-        
-        .ai-placeholder .avatar-icon {
-            font-size: 120px;
-            margin-bottom: 20px;
-            display: block;
-            color: #4facfe;
+        .status-connecting { border-color: #ffc107; background: rgba(255, 193, 7, 0.1); }
+        .status-connected { border-color: #28a745; background: rgba(40, 167, 69, 0.1); }
+        .status-error { border-color: #dc3545; background: rgba(220, 53, 69, 0.1); }
+        .hidden { display: none !important; }
+        #captureCanvas { display: none; }
+        .audio-visualizer { position: absolute; bottom: 15px; right: 15px; display: flex; gap: 3px; height: 30px; align-items: flex-end; }
+        .audio-bar { width: 4px; background: linear-gradient(to top, #4facfe 0%, #00f2fe 100%); border-radius: 2px; transition: height 0.1s ease; box-shadow: 0 0 10px rgba(79, 172, 254, 0.5); }
+        @media (max-width: 768px) { 
+            .user-video-overlay { width: 150px; height: 112px; top: 10px; right: 10px; } /* Even smaller on mobile */
+            .transcript-panel { width: calc(100% - 40px); left: 20px; right: 20px; } 
+            .control-btn { width: 80px; height: 40px; font-size: 20px; } /* Smaller buttons on mobile */
+            .control-bar { gap: 15px; padding: 10px 15px; } /* Smaller bar on mobile */
+            .status-indicator { font-size: 12px; padding: 8px 15px; bottom: 10px; right: 10px; left: auto; } /* Smaller status on mobile */
         }
-        
-        .ai-name-label {
-            position: absolute;
-            bottom: 20px;
-            left: 20px;
-            background: rgba(0, 0, 0, 0.7);
-            padding: 8px 16px;
-            border-radius: 20px;
-            font-size: 16px;
-            font-weight: 600;
-        }
-        
-        /* User video (small, top-right corner like Zoom) */
-        .user-video-overlay {
-            position: absolute;
-            top: 20px;
-            right: 20px;
-            width: 300px;
-            height: 200px;
-            background: #333;
-            border-radius: 15px;
-            overflow: hidden;
-            border: 3px solid #4facfe;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
-            z-index: 10;
-        }
-        
-        #userVideo {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            transform: scaleX(-1); /* Mirror effect */
-        }
-        
-        .user-name-label {
-            position: absolute;
-            bottom: 8px;
-            left: 8px;
-            background: rgba(0, 0, 0, 0.8);
-            padding: 4px 8px;
-            border-radius: 10px;
-            font-size: 12px;
-            font-weight: 600;
-        }
-        
-        /* Speaking indicators */
-        .speaking-indicator {
-            position: absolute;
-            top: 8px;
-            left: 8px;
-            background: #28a745;
-            color: white;
-            padding: 4px 8px;
-            border-radius: 10px;
-            font-size: 11px;
-            animation: pulse 1.5s infinite;
-        }
-        
-        .ai-speaking-indicator {
-            position: absolute;
-            top: 20px;
-            left: 20px;
-            background: #28a745;
-            color: white;
-            padding: 8px 16px;
-            border-radius: 15px;
-            font-size: 14px;
-            animation: pulse 1.5s infinite;
-        }
-        
-        /* Video generating indicator */
-        .video-generating-indicator {
-            position: absolute;
-            top: 60px;
-            left: 20px;
-            background: #ffc107;
-            color: #000;
-            padding: 8px 16px;
-            border-radius: 15px;
-            font-size: 14px;
-            animation: pulse 1.5s infinite;
-        }
-        
-        @keyframes pulse {
-            0% { opacity: 1; transform: scale(1); }
-            50% { opacity: 0.7; transform: scale(1.05); }
-            100% { opacity: 1; transform: scale(1); }
-        }
-        
-        /* Control bar at bottom (like Zoom) */
-        .control-bar {
-            position: absolute;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            background: linear-gradient(180deg, transparent 0%, rgba(0, 0, 0, 0.8) 100%);
-            padding: 20px;
-            display: flex;
-            justify-content: center;
-            gap: 15px;
-            z-index: 20;
-        }
-        
-        .control-btn {
-            width: 60px;
-            height: 60px;
-            border: none;
-            border-radius: 50%;
-            cursor: pointer;
-            font-size: 24px;
-            transition: all 0.3s;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            position: relative;
-        }
-        
-        .control-btn:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
-        }
-        
-        .control-btn:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-            transform: none;
-        }
-        
-        .btn-mic { background: #28a745; }
-        .btn-mic.muted { background: #dc3545; }
-        .btn-camera { background: #007bff; }
-        .btn-camera.off { background: #6c757d; }
-        .btn-voice { background: #ffc107; color: #000; }
-        .btn-voice.active { background: #28a745; color: white; }
-        .btn-end { background: #dc3545; }
-        .btn-start { background: #28a745; }
-        
-        /* Transcript overlay (can be toggled) */
-        .transcript-overlay {
-            position: absolute;
-            top: 20px;
-            left: 20px;
-            width: 400px;
-            max-height: 300px;
-            background: rgba(0, 0, 0, 0.9);
-            border-radius: 15px;
-            padding: 15px;
-            overflow-y: auto;
-            backdrop-filter: blur(10px);
-            z-index: 15;
-            transition: opacity 0.3s;
-        }
-        
-        .transcript-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 10px;
-            padding-bottom: 10px;
-            border-bottom: 1px solid #444;
-        }
-        
-        .transcript-toggle {
-            background: none;
-            border: none;
-            color: white;
-            cursor: pointer;
-            font-size: 18px;
-        }
-        
-        .transcript-message {
-            margin-bottom: 12px;
-            padding: 8px 12px;
-            border-radius: 10px;
-            font-size: 14px;
-        }
-        
-        .user-transcript {
-            background: rgba(0, 123, 255, 0.3);
-            text-align: right;
-        }
-        
-        .ai-transcript {
-            background: rgba(40, 167, 69, 0.3);
-        }
-        
-        .message-time {
-            font-size: 11px;
-            opacity: 0.7;
-            margin-bottom: 4px;
-        }
-        
-        /* Status indicator */
-        .status-indicator {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            background: rgba(0, 0, 0, 0.9);
-            padding: 20px 40px;
-            border-radius: 15px;
-            text-align: center;
-            z-index: 30;
-            transition: opacity 0.3s;
-        }
-        
-        .status-connecting { border: 2px solid #ffc107; }
-        .status-connected { border: 2px solid #28a745; }
-        .status-error { border: 2px solid #dc3545; }
-        
-        .hidden { display: none; }
-        
-        /* Capture canvas (hidden) for sending video frames to AI */
-        #captureCanvas {
-            display: none;
-        }
-        
-        /* Audio visualization */
-        .audio-visualizer {
-            position: absolute;
-            bottom: 10px;
-            right: 10px;
-            display: flex;
-            gap: 2px;
-            height: 20px;
-            align-items: flex-end;
-        }
-        
-        .audio-bar {
-            width: 2px;
-            background: #4facfe;
-            border-radius: 1px;
-            transition: height 0.1s;
-        }
+        .transcript-messages::-webkit-scrollbar { width: 6px; }
+        .transcript-messages::-webkit-scrollbar-track { background: rgba(255, 255, 255, 0.1); border-radius: 3px; }
+        .transcript-messages::-webkit-scrollbar-thumb { background: rgba(79, 172, 254, 0.5); border-radius: 3px; }
+        .transcript-messages::-webkit-scrollbar-thumb:hover { background: rgba(79, 172, 254, 0.7); }
     </style>
 </head>
 <body>
     <div class="video-call-container">
-        <!-- Main AI Video Area -->
         <div class="main-video-area">
-            <div class="ai-placeholder" id="aiPlaceholder">
-                <span class="avatar-icon">🤖</span>
-                <div>AI Teaching Assistant</div>
-                <div style="font-size: 16px; margin-top: 10px; opacity: 0.8;">Ready for intelligent conversation</div>
+            <div id="threejs-container">
+                <div class="loading-overlay" id="loadingOverlay">
+                    <div class="loading-spinner"></div>
+                    <div>Loading Your Avatar...</div>
+                </div>
             </div>
-            <video id="aiVideo" autoplay playsinline class="hidden"></video>
-            <div class="ai-name-label">AI Assistant</div>
-            <div class="ai-speaking-indicator hidden" id="aiSpeaking">🤖 AI is speaking</div>
-            <div class="video-generating-indicator hidden" id="videoGenerating">🎬 Generating avatar video...</div>
+            <div class="ai-name-label">🤖 AI Teaching Assistant</div>
+            <div class="ai-speaking-indicator hidden" id="aiSpeaking">🗣️ AI is speaking</div>
+            <div class="processing-indicator hidden" id="processingIndicator">🧠 Processing...</div>
         </div>
         
-        <!-- User Video Overlay (top-right corner) -->
         <div class="user-video-overlay">
             <video id="userVideo" autoplay muted playsinline></video>
             <div class="user-name-label" id="userNameLabel">You</div>
-            <div class="speaking-indicator hidden" id="userSpeaking">🎤</div>
+            <div class="speaking-indicator hidden" id="userSpeaking">🎤 Listening</div>
             <div class="audio-visualizer" id="audioVisualizer"></div>
         </div>
         
-        <!-- Transcript Overlay -->
-        <div class="transcript-overlay" id="transcriptOverlay">
+        <div class="transcript-panel hidden" id="transcriptPanel">
             <div class="transcript-header">
-                <span style="font-weight: bold;">💬 Live Transcript</span>
-                <button class="transcript-toggle" onclick="toggleTranscript()">✕</button>
+                <h3>💬 Live Conversation</h3>
+                <button class="transcript-toggle" onclick="toggleTranscript()" title="Hide Transcript">✕</button>
             </div>
-            <div id="transcriptMessages"></div>
+            <div class="transcript-messages" id="transcriptMessages">
+                <div class="transcript-message ai-transcript">
+                    <div class="message-time">AI Assistant - Ready</div>
+                    <div>Hello! I'm your AI teaching assistant. Start the video call and enable voice mode for a natural conversation.</div>
+                </div>
+            </div>
         </div>
         
-        <!-- Control Bar -->
         <div class="control-bar">
-            <button class="control-btn btn-start" id="startBtn" onclick="startVideoCall()" title="Start Call">
-                📹
-            </button>
-            
-            <button class="control-btn btn-mic" id="micBtn" onclick="toggleMic()" disabled title="Microphone">
-                🎤
-            </button>
-            
-            <button class="control-btn btn-camera" id="cameraBtn" onclick="toggleCamera()" disabled title="Camera">
-                📷
-            </button>
-            
-            <button class="control-btn btn-voice" id="voiceBtn" onclick="toggleVoiceMode()" disabled title="Voice Mode">
-                🗣️
-            </button>
-            
-            <button class="control-btn btn-end" id="endBtn" onclick="endCall()" disabled title="End Call">
-                📞
-            </button>
+            <button class="control-btn btn-mic" id="micBtn" onclick="toggleMic()" disabled title="Toggle Microphone">🎤</button>
+            <button class="control-btn btn-camera" id="cameraBtn" onclick="toggleCamera()" disabled title="Toggle Camera">📹</button>
+            <button class="control-btn btn-chat-toggle" id="chatToggleBtn" onclick="toggleTranscript()" title="Show Chat">💬</button>
+            <button class="control-btn btn-end" id="endBtn" onclick="endCall()" disabled title="End Call">❌</button>
         </div>
         
-        <!-- Status Indicator -->
         <div class="status-indicator status-connecting" id="statusIndicator">
-            Ready to start video call
+            🎥 Connecting to video call...
         </div>
         
-        <!-- Hidden canvas for capturing video frames -->
         <canvas id="captureCanvas" width="640" height="480"></canvas>
     </div>
 
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+
     <script>
-        // Global state
-        let userStream = null;
-        let micEnabled = true;
-        let cameraEnabled = true;
-        let voiceModeEnabled = false;
-        let transcriptVisible = true;
-        let chatSession = null;
-        let currentUser = null;
-        let authToken = null;
-        let currentOffice = null;
-        let captureInterval = null;
+        // === GLOBAL STATE ===
+        let userStream, micEnabled = true, cameraEnabled = true;
+        let chatSession, currentUser, authToken, currentOffice;
+        let scene, camera, renderer, avatar, mixer, clock, lights = {}, avatarReady = false, avatarSpeaking = false;
+        let recognition, isProcessingMessage = false, lastProcessedMessage = '';
+        let animationFrame;
+        // NEW: State for streaming
+        let audioQueue = [];
+        let isPlayingAudio = false;
+        let isPreloadingNext = false;
+        let preloadedAudio = null;
+        let currentAiMessageDiv = null;
         
-        // Get session data
+        // SMART: AI voice tracking for intelligent filtering
+        let currentAiText = "";
+        let lastAiResponse = ""; // Store the last AI response for echo filtering
+        let aiSpeechBuffer = [];
+        let lastAiAudioTime = 0; // Timestamp of the last AI audio chunk played
+        let allowInterruptions = true;
+        
+        // Turn chaining buffer for speech input
+        let speechBuffer = "";
+        let speechBufferTimer = null;
+        const TURN_CHAINING_WINDOW_MS = 1500; // 1.5 seconds
+        
+        // MIC CONTROL DURING TTS
+        let micDisabledForTTS = false; 
+        
+        // DUPLICATE PREVENTION
+        let recentInputs = [];
+        let lastProcessedInput = "";
+        let lastProcessedTime = 0; // Timestamp of the last valid processed input
+        let audioContext, analyser, dataArray, audioSource;
+        const audioVisualizer = document.getElementById('audioVisualizer');
+        const audioBars = [];
+        const NUM_BARS = 10;
+        const AUDIO_CHUNK_PLAYBACK_DELAY_MS = 5;  // Reduced for ultra-fast transitions
+        
+        // NEW: Delays for robust microphone control (Increased values)
+        const MIC_RESTART_DELAY_MS = 300; // Increased delay before attempting to restart mic after stopping
+        const TTS_QUIESCE_DELAY_MS = 1000; // Increased delay after last AI audio chunk finishes before restarting mic
+
+        // Frontend performance monitoring
+        const performanceTracker = {
+            speechToResponse: [],
+            audioPlaybackLatency: [],
+            uiResponseTimes: [],
+            networkLatency: [],
+            lastSpeechTime: 0,
+            lastResponseTime: 0
+        };
+        
+        function logPerformanceMetric(type, value, details = {}) {
+            const timestamp = Date.now();
+            performanceTracker[type].push({ timestamp, value, details });
+            
+            // Keep only last 50 entries
+            if (performanceTracker[type].length > 50) {
+                performanceTracker[type] = performanceTracker[type].slice(-50);
+            }
+            
+            console.log(`PERF_${type.toUpperCase()}: ${value}ms`, details);
+        }
+        
+        function getPerformanceStats() {
+            const stats = {};
+            for (const [key, values] of Object.entries(performanceTracker)) {
+                if (Array.isArray(values) && values.length > 0) {
+                    const times = values.map(v => v.value);
+                    stats[key] = {
+                        avg: Math.round(times.reduce((a, b) => a + b, 0) / times.length),
+                        min: Math.min(...times),
+                        max: Math.max(...times),
+                        count: values.length
+                    };
+                }
+            }
+            return stats;
+        }
+
+        const API_BASE = 'http://localhost:5001'; // Ensure this matches your backend server address
+
+        // Get session data from localStorage
         chatSession = localStorage.getItem('chatSession');
         authToken = localStorage.getItem('authToken');
         currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
         currentOffice = JSON.parse(localStorage.getItem('currentOffice') || '{}');
-        
-        const API_BASE = 'http://localhost:5001';
-        
-        // Speech Recognition
-        let recognition = null;
+
+        // Optimized Speech Recognition setup
         if ('webkitSpeechRecognition' in window) {
             recognition = new webkitSpeechRecognition();
-            recognition.continuous = true;
-            recognition.interimResults = true;
+            recognition.continuous = true; // REVERTED: Back to continuous listening
+            recognition.interimResults = true;  // Enable for faster response
             recognition.lang = 'en-US';
+            recognition.maxAlternatives = 1;  // Reduce processing overhead
+            recognition.serviceURI = 'ws://localhost/speech';  // Use local service if available
+        } else {
+            console.warn('Speech Recognition not supported in this browser.');
         }
-        
-        // Speech Synthesis for AI responses
-        let speechSynthesis = window.speechSynthesis;
-        
-        console.log('🎥 Zoom-style Video Chat Loaded');
-        
+
+        // Initialize audio visualizer bars
+        for (let i = 0; i < NUM_BARS; i++) {
+            const bar = document.createElement('div');
+            bar.classList.add('audio-bar');
+            audioVisualizer.appendChild(bar);
+            audioBars.push(bar);
+        }
+
+        // === STATUS MANAGEMENT ===
         function updateStatus(message, type = 'connecting') {
             const statusIndicator = document.getElementById('statusIndicator');
             statusIndicator.textContent = message;
             statusIndicator.className = `status-indicator status-${type}`;
-            
-            // Auto-hide status after 3 seconds if connected
             if (type === 'connected') {
-                setTimeout(() => {
-                    statusIndicator.style.opacity = '0';
-                }, 3000);
+                setTimeout(() => { statusIndicator.classList.add('hidden'); }, 2000);
             } else {
-                statusIndicator.style.opacity = '1';
-            }
-        }
-        
-        // NEW: Function to check for avatar videos
-        async function checkForAvatarVideo(messageId) {
-            try {
-                const response = await fetch(`${API_BASE}/chat/message/${messageId}/avatar`, {
-                    headers: {
-                        'Authorization': `Bearer ${authToken}`
-                    }
-                });
-                
-                const result = await response.json();
-                
-                if (result.video_ready && result.video_url) {
-                    console.log('🎬 Avatar video ready:', result.video_url);
-                    displayAvatarVideo(result.video_url);
-                    return true;
-                }
-                
-                return false;
-            } catch (error) {
-                console.error('Error checking avatar video:', error);
-                return false;
+                statusIndicator.classList.remove('hidden');
             }
         }
 
-        // NEW: Function to display the D-ID avatar video
-        function displayAvatarVideo(videoUrl) {
-            console.log('📺 Displaying avatar video:', videoUrl);
+        // === THREE.JS AVATAR SYSTEM ===
+        function initializeThreeJSAvatar() {
+            const container = document.getElementById('threejs-container');
+            scene = new THREE.Scene();
+            scene.fog = new THREE.Fog(0x1a1a1a, 10, 50); // Adds a subtle fog effect
+            camera = new THREE.PerspectiveCamera(50, container.clientWidth / container.clientHeight, 0.1, 1000);
+            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: "high-performance" });
+            renderer.setSize(container.clientWidth, container.clientHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            renderer.setClearColor(0x2a2a2a, 0); // Transparent background for the avatar
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap; // Softer shadows
+            container.appendChild(renderer.domElement);
+            setupOptimizedLighting();
+            clock = new THREE.Clock();
+            loadLocalGLBAvatar();
             
-            // Hide the placeholder
-            const placeholder = document.getElementById('aiPlaceholder');
-            if (placeholder) {
-                placeholder.classList.add('hidden');
-            }
-            
-            // Hide video generating indicator
-            const videoGenerating = document.getElementById('videoGenerating');
-            if (videoGenerating) {
-                videoGenerating.classList.add('hidden');
-            }
-            
-            // Show and set the video
-            const aiVideo = document.getElementById('aiVideo');
-            if (aiVideo) {
-                aiVideo.src = videoUrl;
-                aiVideo.classList.remove('hidden');
-                aiVideo.play();
+            // Load classroom background image
+            const textureLoader = new THREE.TextureLoader();
+            // Using a placeholder image for a classroom background.
+            // You can replace this URL with your actual classroom image.
+            textureLoader.load('https://placehold.co/1920x1080/4CAF50/FFFFFF?text=Classroom+Background', 
+                (texture) => {
+                    scene.background = texture;
+                    console.log('Classroom background loaded.');
+                },
+                undefined, // onProgress callback
+                (err) => { {
+                    console.error('Error loading classroom background:', err);
+                    // Fallback to a solid color if image fails
+                    scene.background = new THREE.Color(0x333333); 
+                }
+            });
+
+            startOptimizedRenderLoop();
+            window.addEventListener('resize', handleResize);
+        }
+
+        function setupOptimizedLighting() {
+            lights.ambient = new THREE.AmbientLight(0x404040, 0.4); // Soft ambient light
+            scene.add(lights.ambient);
+
+            lights.key = new THREE.DirectionalLight(0xffffff, 1.2); // Main light source
+            lights.key.position.set(2, 4, 5);
+            lights.key.castShadow = true;
+            // Set up shadow properties for the key light
+            lights.key.shadow.mapSize.width = 1024;
+            lights.key.shadow.mapSize.height = 1024;
+            lights.key.shadow.camera.near = 0.5;
+            lights.key.shadow.camera.far = 50;
+            lights.key.shadow.camera.left = -5;
+            lights.key.shadow.camera.right = 5;
+            lights.key.shadow.camera.top = 5;
+            lights.key.shadow.camera.bottom = -5;
+            scene.add(lights.key);
+
+            lights.fill = new THREE.DirectionalLight(0x4facfe, 0.3); // Blueish fill light for depth
+            lights.fill.position.set(-3, 2, 5);
+            scene.add(lights.fill);
+
+            // Optional: Add a soft ground plane to receive shadows
+            const planeGeometry = new THREE.PlaneGeometry(100, 100);
+            const planeMaterial = new THREE.ShadowMaterial({ opacity: 0.3 }); // Transparent shadow receiver
+            const plane = new THREE.Mesh(planeGeometry, planeMaterial);
+            plane.rotation.x = -Math.PI / 2;
+            plane.position.y = -1.5; // Adjust based on your avatar's base to make it appear on the "ground"
+            plane.receiveShadow = true;
+            scene.add(plane);
+        }
+
+        function loadLocalGLBAvatar() {
+            updateStatus('🎭 Loading your Avatar...', 'connecting');
+            const loader = new THREE.GLTFLoader();
+            // Corrected path to /static/avatars/avatar.glb
+            loader.load('/static/avatars/avatar.glb', 
+                (gltf) => {
+                    avatar = gltf.scene;
+                    scene.add(avatar);
+
+                    // Enable shadows for all meshes in the avatar
+                    avatar.traverse((node) => {
+                        if (node.isMesh) {
+                            node.castShadow = true;
+                            node.receiveShadow = true;
+                        }
+                    });
+
+                    const box = new THREE.Box3().setFromObject(avatar);
+                    const size = box.getSize(new THREE.Vector3());
+                    const center = box.getCenter(new THREE.Vector3());
+
+                    // Center the avatar horizontally and vertically
+                    avatar.position.x = -center.x;
+                    avatar.position.z = -center.z;
+                    // Adjusted to place avatar's feet at y=0
+                    avatar.position.y = -box.min.y; 
+
+                    // Position camera relative to avatar size for optimal view (chest and up)
+                    const cameraDistance = size.z * 2; 
+                    const cameraHeight = size.y * 0.9;   
+
+                    camera.position.set(0, cameraHeight, cameraDistance);
+                    camera.lookAt(0, size.y * 0.9, 0); // Make camera look slightly below its own height, targeting chest area
+
+                    if (gltf.animations && gltf.animations.length) {
+                        mixer = new THREE.AnimationMixer(avatar);
+                        const action = mixer.clipAction(gltf.animations[0]);
+                        action.play();
+                    }
+                    avatarReady = true;
+                    document.getElementById('loadingOverlay').classList.add('hidden');
+                    updateStatus('✅ Avatar Ready', 'connected');
+                },
+                // Optional: progress callback for loading feedback
+                (xhr) => {
+                    console.log((xhr.loaded / xhr.total * 100) + '% loaded');
+                },
+                // Error callback for GLB loading issues
+                (error) => {
+                    console.error('❌ GLB loading error:', error);
+                    updateStatus('❌ Failed to load avatar. Check console for 404 (file not found) or CORS errors.', 'error');
+                }
+            );
+        }
+
+        function startOptimizedRenderLoop() {
+            function animate() {
+                animationFrame = requestAnimationFrame(animate);
+                const delta = clock.getDelta();
+                if (mixer) mixer.update(delta); // Update avatar animations
+                if (avatar && avatarReady) {
+                    if (avatarSpeaking) animateSpeaking(clock.getElapsedTime());
+                    else animateIdle(clock.getElapsedTime());
+                }
+                renderer.render(scene, camera); // Render the Three.js scene
                 
-                // Show AI speaking indicator
-                document.getElementById('aiSpeaking').classList.remove('hidden');
-                
-                // Hide AI speaking indicator when video ends
-                aiVideo.onended = function() {
-                    document.getElementById('aiSpeaking').classList.add('hidden');
-                    // Optionally hide video and show placeholder again
-                    setTimeout(() => {
-                        aiVideo.classList.add('hidden');
-                        placeholder.classList.remove('hidden');
-                    }, 1000);
-                };
+                // Update audio visualizer if audio is playing or mic is active
+                if (analyser && (isPlayingAudio || (recognition && recognition.state === 'listening'))) { 
+                    updateAudioVisualizer();
+                } else if (audioBars.length > 0) {
+                    // Reset bars to zero height when no audio is playing
+                    audioBars.forEach(bar => bar.style.height = '0px');
+                }
             }
+            animate();
+        }
+
+        function animateSpeaking(time) {
+            if (!avatar) return;
+            // Simple speaking animation: subtle vertical bob and head turn
+            const intensity = 1.0 + Math.sin(time * 8) * 0.6; // More pronounced movement for speaking
+            avatar.rotation.y = Math.sin(time * 1.5) * 0.15 * intensity;
+            avatar.position.y = Math.sin(time * 3) * 0.06 * intensity;
+        }
+
+        function animateIdle(time) {
+            if (!avatar) return;
+            // Subtle idle animation for when the avatar is not speaking
+            avatar.position.y = Math.sin(time * 1.5) * 0.015;
+            avatar.rotation.y = Math.sin(time * 0.8) * 0.03;
+        }
+
+        function handleResize() {
+            if (!camera || !renderer) return;
+            const container = document.getElementById('threejs-container');
+            camera.aspect = container.clientWidth / container.clientHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(container.clientWidth, container.clientHeight);
+        }
+
+        // === SMART AI VOICE RECOGNITION SYSTEM ===
+        
+        function isAiVoice(transcript) {
+            // Remove punctuation and normalize for comparison
+            const normalizeText = (text) => text.toLowerCase().replace(/[^\w\s]/g, '').replace(/\s+/g, ' ').trim();
+            
+            const normalizedTranscript = normalizeText(transcript);
+            const normalizedAiText = normalizeText(currentAiText);
+            
+            const timeSinceAiAudio = Date.now() - lastAiAudioTime;
+
+            // --- NEW / MODIFIED IS_AI_VOICE LOGIC ---
+
+            // 1. Very aggressive filtering immediately after AI finishes speaking
+            // This is the most critical part for stopping immediate echoes.
+            // If a short, fast input comes right after AI audio, and it's mostly AI's words.
+            if (timeSinceAiAudio < 1200 && normalizedTranscript.length > 5) { // Increased time window, min length 5 words
+                // Check if the transcript contains a significant portion of the last AI utterance
+                // This is crucial for catching echoes of the *entire* AI response.
+                const aiWords = normalizedAiText.split(' ').filter(w => w.length > 1);
+                const transcriptWords = normalizedTranscript.split(' ').filter(w => w.length > 1);
+
+                let commonWordCount = 0;
+                for (let word of transcriptWords) {
+                    if (aiWords.includes(word)) {
+                        commonWordCount++;
+                    }
+                }
+                const overlapRatio = commonWordCount / transcriptWords.length;
+
+                // If more than 70% of the words in the *detected transcript* are from the AI's last speech,
+                // it's an echo. This handles cases where user's mic picks up AI + some of user's own "filler" words.
+                if (overlapRatio > 0.70) {
+                    console.log(`🔍 AI voice detected (aggressive overlap after AI speech): "${transcript}" (Overlap: ${(overlapRatio * 100).toFixed(1)}%, Time since AI: ${timeSinceAiAudio}ms)`);
+                    return true;
+                }
+
+                // Also, if the transcript is an exact match or near-exact match of the *entire* AI's last utterance
+                if (normalizedTranscript === normalizedAiText || (normalizedAiText.length > 10 && normalizedTranscript.includes(normalizedAiText))) {
+                     console.log(`🔍 AI voice detected (exact/full substring match after AI speech): "${transcript}" (Time since AI: ${timeSinceAiAudio}ms)`);
+                     return true;
+                }
+            }
+
+            // 2. Original checks (less aggressive, for slightly delayed or partial echoes)
+            // Primary check: Check if the speech matches what the AI is currently saying (very strictly)
+            if (normalizedAiText && normalizedTranscript.length > 3) {
+                const words = normalizedTranscript.split(' ');
+                let matchCount = 0;
+                for (let word of words) {
+                    if (word.length > 2 && normalizedAiText.includes(word)) {
+                        matchCount++;
+                    }
+                }
+                const matchPercentage = matchCount / words.length;
+                if (matchPercentage > 0.90) { 
+                    console.log(`🔍 AI voice detected (content match): "${transcript}" (${(matchPercentage * 100).toFixed(1)}% match)`);
+                    return true;
+                }
+            }
+            
+            // Check if the transcript contains the *end* of the AI's last message, common with echoes
+            const aiLastWords = normalizedAiText.split(' ').slice(-5).join(' '); // Last 5 words of AI text
+            if (normalizedTranscript.includes(aiLastWords) && normalizedAiText.length > 10 && normalizedTranscript.length > aiLastWords.length) {
+                console.log(`🔍 AI voice detected (transcript ends with AI's last words): "${transcript}"`);
+                return true;
+            }
+
+            // Secondary check: Check timing & content for shorter echoes (more aggressive)
+            if (timeSinceAiAudio < 700 && normalizedTranscript.length > 0 && normalizedTranscript.length < 30) {
+                 if (normalizedAiText.includes(normalizedTranscript)) {
+                    console.log(`🔍 AI echo detected (timing & partial content match): "${transcript}" (${timeSinceAiAudio}ms after AI audio)`);
+                    return true;
+                 }
+                // Also check for common short echoes even if not directly in currentAiText
+                const commonEchoes = ["hello", "yeah", "okay", "i can't identify", "i can't identify individuals in images", "individuals", "images", "who they are", "i don't know who they are", "of course", "what specific", "math problems", "or concepts", "do you need help with", "sure", "i'd be happy to help you with your math homework", "what specific problems or topics are you working on", "i can help you with taylor series", "what specific problem or function are you working on", "do you need assistance with", "the war of", "started on june", "june 18", "1812", "feel free to ask", "need more information"]; // Added phrases from current echo
+                if (commonEchoes.some(phrase => normalizedTranscript.includes(normalizeText(phrase)))) {
+                    console.log(`🔍 AI echo detected (timing & common phrase): "${transcript}" (${timeSinceAiAudio}ms after AI audio)`);
+                    return true;
+                }
+            }
+            
+            return false;
         }
         
-        async function startVideoCall() {
-            console.log('🎥 Starting video call...');
-            updateStatus('Requesting camera and microphone access...', 'connecting');
+        function addToAiSpeechBuffer(text) {
+            currentAiText += " " + text;
+            // Keep only last 300 characters for comparison to be relevant
+            if (currentAiText.length > 300) {
+                currentAiText = currentAiText.slice(-300);
+            }
             
-            if (!chatSession) {
-                updateStatus('No chat session found', 'error');
-                alert('Please start a chat session in the main window first.');
+            lastAiAudioTime = Date.now();
+            // Store the last AI response for echo filtering
+            lastAiResponse = text;
+            // console.log(`🤖 AI text updated: "${currentAiText.slice(-50)}..."`); // Commented to reduce log spam
+        }
+        
+        function clearAiSpeechBuffer() {
+            setTimeout(() => {
+                currentAiText = "";
+                console.log("🤖 AI speech buffer cleared");
+            }, TTS_QUIESCE_DELAY_MS + 500); // Clear after a bit more delay to ensure no lingering echoes
+        }
+        
+        function clearRecentInputs() {
+            recentInputs = [];
+            lastProcessedInput = "";
+            console.log("🗑️ Recent inputs cleared");
+        }
+        
+        function isDuplicateInput(input) {
+            const normalizedInput = input.toLowerCase().trim();
+            const now = Date.now();
+            
+            // Check exact duplicate within last 3 seconds (tighter window)
+            if (normalizedInput === lastProcessedInput && (now - lastProcessedTime) < 3000) {
+                console.log(`🚫 Exact duplicate detected: "${input}" (within 3s)`);
+                return true;
+            }
+            
+            // Check recent inputs for high similarity
+            for (let recentInput of recentInputs) {
+                const similarity = calculateSimilarity(normalizedInput, recentInput.text);
+                const timeDiff = now - recentInput.time;
+                
+                // If very similar (>90%) within 5 seconds, it's likely a duplicate or rapid echo
+                // Added a check for very short inputs that are highly similar and recent, as these are often echoes
+                if (similarity > 0.90 && timeDiff < 5000) { 
+                    console.log(`🚫 Highly similar duplicate detected: "${input}" (${(similarity * 100).toFixed(1)}% similar to recent input)`);
+                    return true;
+                }
+                if (normalizedInput.length < 10 && similarity > 0.7 && timeDiff < 1000) { // More aggressive for very short, quick echoes
+                    console.log(`🚫 Aggressive short-phrase echo detected: "${input}" (${(similarity * 100).toFixed(1)}% similar to recent input, very fast)`);
+                    return true;
+                }
+            }
+            
+            // Add to recent inputs (keep last 5)
+            recentInputs.push({ text: normalizedInput, time: now });
+            if (recentInputs.length > 5) {
+                recentInputs.shift();
+            }
+            
+            // Update last processed
+            lastProcessedInput = normalizedInput;
+            lastProcessedTime = now;
+            
+            return false;
+        }
+        
+        function calculateSimilarity(str1, str2) {
+            // Jaccard index for word-based similarity
+            const set1 = new Set(str1.split(' ').filter(word => word.length > 1)); // Filter out single-char words
+            const set2 = new Set(str2.split(' ').filter(word => word.length > 1));
+            
+            if (set1.size === 0 || set2.size === 0) return 0;
+            
+            const intersection = new Set([...set1].filter(x => set2.has(x)));
+            const union = new Set([...set1, ...set2]);
+            
+            return intersection.size / union.size;
+        }
+
+        // === STREAMING AUDIO & TTS SYSTEM ===
+
+        function startAvatarSpeaking() {
+            if (avatarSpeaking) return;
+            console.log('▶️ Starting avatar speaking');
+            avatarSpeaking = true;
+            document.getElementById('aiSpeaking').classList.remove('hidden');
+            
+            lastAiAudioTime = Date.now();
+        }
+
+        function stopAvatarSpeaking() {
+            if (!avatarSpeaking) return;
+            console.log('⏹️ Stopping avatar speaking - AI speech buffer will clear automatically');
+            avatarSpeaking = false;
+            document.getElementById('aiSpeaking').classList.add('hidden');
+            
+            // Clear AI speech buffer after a delay
+            clearAiSpeechBuffer();
+        }
+
+        async function playNextAudioChunk() {
+            if (audioQueue.length === 0) {
+                isPlayingAudio = false;
+                stopAvatarSpeaking();
+                
+                // Re-enable microphone when done ONLY IF it was disabled for TTS
+                // ADDED: TTS_QUIESCE_DELAY_MS to ensure audio fully fades
+                if (micDisabledForTTS) {
+                    console.log(`🎤 Preparing to restart microphone after ${TTS_QUIESCE_DELAY_MS}ms quiesce period.`);
+                    setTimeout(() => {
+                        micDisabledForTTS = false;
+                        checkAndRestartMicrophone(); // Restart microphone if needed
+                    }, TTS_QUIESCE_DELAY_MS);
+                }
                 return;
             }
             
+            // Prevent audio overlapping - wait for current audio to finish
+            if (isPlayingAudio) {
+                console.log('🎵 Audio already playing, waiting for current chunk to finish');
+                return;
+            }
+            
+            // CRITICAL: Stop microphone immediately BEFORE playing TTS
+            if (micEnabled && recognition && recognition.state === 'listening' && !micDisabledForTTS) {
+                try {
+                    recognition.stop();
+                    micDisabledForTTS = true; // Flag that mic was disabled by TTS
+                    console.log('🔇 MICROPHONE DISABLED FOR TTS (explicit stop)');
+                    // REMOVED: await new Promise(resolve => setTimeout(resolve, MIC_RESTART_DELAY_MS)); 
+                    // This delay was causing issues by allowing audio to start before mic was truly off.
+                } catch (e) {
+                    console.log('🔇 Recognition already stopped or error stopping (expected):', e);
+                }
+            } else if (!micEnabled) {
+                console.log('🔇 Microphone is already physically disabled by user.');
+            } else if (micDisabledForTTS) {
+                console.log('🔇 Microphone already disabled for TTS.');
+            }
+
+            isPlayingAudio = true;
+            startAvatarSpeaking();
+
+            const audioBase64 = audioQueue.shift();
+            
             try {
-                // Request camera and microphone
-                userStream = await navigator.mediaDevices.getUserMedia({
-                    video: {
-                        width: { ideal: 1280 },
-                        height: { ideal: 720 },
-                        facingMode: 'user'
-                    },
+                // Ensure audio context is resumed
+                if (!audioContext) { // Initialize if not already
+                    audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                    analyser = audioContext.createAnalyser();
+                    analyser.fftSize = 256;
+                    dataArray = new Uint8Array(analyser.frequencyBinCount);
+                    
+                    // Connect user stream to audio context for visualizer even when not listening
+                    if (userStream && userStream.getAudioTracks().length > 0) {
+                        const userAudioSource = audioContext.createMediaStreamSource(userStream);
+                        userAudioSource.connect(analyser); // Connect user audio to analyser for live feedback
+                    }
+                }
+                // Always attempt to resume context before playing
+                if (audioContext.state === 'suspended') {
+                    await audioContext.resume();
+                    console.log('AudioContext resumed successfully.');
+                }
+
+                const audioBytes = atob(audioBase64);
+                const audioBlob = new Blob([new Uint8Array(audioBytes.split('').map(char => char.charCodeAt(0)))], { type: 'audio/mpeg' }); 
+                const audioUrl = URL.createObjectURL(audioBlob);
+                const audio = new Audio(audioUrl);
+                
+                // Create isolated audio routing to prevent microphone pickup
+                if (audioSource) {
+                    try {
+                        audioSource.disconnect();
+                    } catch (e) {
+                        // Ignore disconnect errors
+                    }
+                }
+                
+                // Create audio source and connect through gain node for better control
+                audioSource = audioContext.createMediaElementSource(audio);
+                const gainNode = audioContext.createGain();
+                
+                // Connect: audioSource -> gainNode -> analyser (for visualization) -> destination (speakers)
+                audioSource.connect(gainNode);
+                gainNode.connect(analyser); // Connect AI audio to analyser for visualization
+                gainNode.connect(audioContext.destination); // DIRECTLY connect to speakers.
+                
+                // Ensure audio plays through speakers/headphones only, not microphone
+                audio.setAttribute('playsinline', true);
+                audio.setAttribute('webkit-playsinline', true);
+
+                // Fixed event handlers with microphone re-enabling
+                audio.onended = () => {
+                    console.log('🎵 Audio chunk finished playing');
+                    URL.revokeObjectURL(audioUrl);
+                    
+                    // Always set isPlayingAudio to false when chunk ends
+                    isPlayingAudio = false;
+                    
+                    // Clean up audio source efficiently
+                    if (audioSource) {
+                        try {
+                            audioSource.disconnect();
+                        } catch (e) {
+                            // Ignore disconnect errors
+                        }
+                        audioSource = null;
+                    }
+                    
+                    // Continue playing queue or re-enable microphone
+                    setTimeout(() => {
+                        if (audioQueue.length > 0) {
+                            playNextAudioChunk(); 
+                        } else {
+                            console.log('🎵 Audio queue empty, stopping avatar speaking');
+                            stopAvatarSpeaking();
+                            // Microphone will be re-enabled here in the playNextAudioChunk parent scope
+                        }
+                    }, 10); // Very short delay for clean audio transitions
+                };
+                
+                audio.onerror = (e) => {
+                    console.error('❌ Audio playback error:', e);
+                    URL.revokeObjectURL(audioUrl);
+                    
+                    // Clean up audio source
+                    if (audioSource) {
+                        try {
+                            audioSource.disconnect();
+                        } catch (e) {
+                            // Ignore disconnect errors
+                        }
+                        audioSource = null;
+                    }
+                    
+                    // Ensure microphone is re-enabled after error
+                    isPlayingAudio = false; 
+                    if (audioQueue.length > 0) {
+                        requestAnimationFrame(() => playNextAudioChunk());
+                    } else {
+                        stopAvatarSpeaking();
+                    }
+                };
+
+                console.log('🎵 Starting audio playback');
+                await audio.play(); // Start playing the audio chunk
+
+            } catch (e) {
+                console.error('❌ Failed to decode or play audio chunk:', e);
+                isPlayingAudio = false; // Mark as not playing on error
+                
+                setTimeout(() => {
+                    if (audioQueue.length > 0) {
+                        playNextAudioChunk();
+                    } else {
+                        stopAvatarSpeaking();
+                    }
+                }, 500);
+            }
+        }
+
+        // Preload next audio chunk for seamless playback
+        function preloadNextAudioChunk() {
+            if (isPreloadingNext || audioQueue.length === 0) return;
+            
+            isPreloadingNext = true;
+            const nextAudioBase64 = audioQueue[0]; // Don't remove yet
+            
+            try {
+                const audioBytes = atob(nextAudioBase64);
+                const audioBlob = new Blob([new Uint8Array(audioBytes.split('').map(char => char.charCodeAt(0)))], { type: 'audio/mpeg' });
+                const audioUrl = URL.createObjectURL(audioBlob);
+                
+                preloadedAudio = new Audio(audioUrl);
+                preloadedAudio.preload = 'auto';
+                
+                preloadedAudio.onloadeddata = () => {
+                    console.log('🎵 Next audio chunk preloaded');
+                    isPreloadingNext = false; // Reset preload flag here
+                };
+                
+                preloadedAudio.onerror = () => {
+                    console.warn('⚠️ Audio preload failed');
+                    if (preloadedAudio) {
+                        URL.revokeObjectURL(preloadedAudio.src);
+                        preloadedAudio = null;
+                    }
+                    isPreloadingNext = false;
+                };
+                
+            } catch (e) {
+                console.error('❌ Failed to preload audio:', e);
+                isPreloadingNext = false;
+            }
+        }
+
+        // Enhanced audio visualization update
+        function updateAudioVisualizer() {
+            if (!analyser || (!isPlayingAudio && !(recognition && recognition.state === 'listening'))) { 
+                // Smoothly fade out bars when no audio
+                audioBars.forEach(bar => {
+                    const currentHeight = parseInt(bar.style.height) || 0;
+                    bar.style.height = Math.max(0, currentHeight - 2) + 'px';
+                });
+                return;
+            }
+
+            analyser.getByteFrequencyData(dataArray);
+
+            // Enhanced bar animation with smoother transitions
+            for (let i = 0; i < NUM_BARS; i++) {
+                const dataIndex = Math.floor(i * dataArray.length / NUM_BARS);
+                const value = dataArray[dataIndex] || 0;
+                const barHeight = (value / 255) * 40; // Max height 40px
+                
+                // Smooth height transitions
+                const currentHeight = parseInt(audioBars[i].style.height) || 0;
+                const targetHeight = Math.max(barHeight, currentHeight * 0.9); // Smooth decay
+                audioBars[i].style.height = `${targetHeight}px`;
+                
+                // Add pulsing effect based on audio intensity
+                if (value > 100) {
+                    audioBars[i].style.boxShadow = `0 0 ${value/10}px rgba(79, 172, 254, 0.8)`;
+                } else {
+                    audioBars[i].style.boxShadow = '0 0 10px rgba(79, 172, 254, 0.5)';
+                }
+            }
+        }
+
+        // === VIDEO CALL FUNCTIONS ===
+        async function startVideoCall() {
+            try {
+                // Request media with echo cancellation and noise suppression
+                userStream = await navigator.mediaDevices.getUserMedia({ 
+                    video: true, 
                     audio: {
                         echoCancellation: true,
                         noiseSuppression: true,
+                        autoGainControl: true,
                         sampleRate: 44100
                     }
                 });
+                document.getElementById('userVideo').srcObject = userStream;
+                // Enable control buttons once stream is acquired
+                ['micBtn', 'cameraBtn', 'endBtn', 'chatToggleBtn'].forEach(id => document.getElementById(id).disabled = false);
+                updateStatus('✅ Video call connected!', 'connected');
                 
-                // Connect user video
-                const userVideo = document.getElementById('userVideo');
-                userVideo.srcObject = userStream;
-                
-                // Update user name
-                document.getElementById('userNameLabel').textContent = currentUser.name || 'You';
-                
-                // Enable controls
-                document.getElementById('startBtn').disabled = true;
-                document.getElementById('micBtn').disabled = false;
-                document.getElementById('cameraBtn').disabled = false;
-                document.getElementById('voiceBtn').disabled = false;
-                document.getElementById('endBtn').disabled = false;
-                
-                updateStatus('Connected - Voice mode ready', 'connected');
-                
-                // Setup audio visualization
-                setupAudioVisualization();
-                
-                // Setup speech recognition
-                if (recognition) {
-                    setupSpeechRecognition();
-                }
-                
-                // Start capturing video frames for AI vision
-                startVideoCapture();
-                
-                console.log('✅ Video call started successfully');
-                
-            } catch (error) {
-                console.error('❌ Error starting video call:', error);
-                updateStatus('Failed to access camera/microphone', 'error');
-                
-                if (error.name === 'NotAllowedError') {
-                    alert('Camera and microphone access is required. Please allow access and try again.');
-                } else if (error.name === 'NotFoundError') {
-                    alert('No camera or microphone found. Please check your devices.');
+                // Setup Speech Recognition
+                if ('webkitSpeechRecognition' in window) { // Check again for browser support
+                    setupOptimizedSpeechRecognition();
+                    checkAndRestartMicrophone(); // Start continuous listening
+                    console.log('🎤 Speech recognition initialized and started for continuous listening.');
                 } else {
-                    alert('Error starting video call: ' + error.message);
+                    updateStatus('⚠️ Speech Recognition not supported in this browser. Voice commands disabled.', 'error');
+                }
+
+                // Initialize AudioContext and analyser for visualizer
+                if (!audioContext) {
+                    audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                    analyser = audioContext.createAnalyser();
+                    analyser.fftSize = 256;
+                    dataArray = new Uint8Array(analyser.frequencyBinCount);
+
+                    const userAudioSource = audioContext.createMediaStreamSource(userStream);
+                    userAudioSource.connect(analyser);
+                    // Do NOT connect analyser to destination to avoid echo
+                }
+
+            } catch (error) {
+                console.error("Camera/Microphone access error:", error);
+                // Provide more specific error messages for common permission issues
+                if (error.name === 'NotAllowedError' || error.name === 'PermissionDeniedError') {
+                    updateStatus('❌ Camera/Microphone access denied. Please enable in browser settings.', 'error');
+                } else if (error.name === 'NotFoundError' || error.name === 'DevicesNotFoundError') {
+                    updateStatus('❌ No camera or microphone found.', 'error');
+                } else {
+                    updateStatus('❌ Camera/Microphone access failed. Please check permissions.', 'error');
                 }
             }
         }
-        
-        function startVideoCapture() {
-            const canvas = document.getElementById('captureCanvas');
-            const ctx = canvas.getContext('2d');
-            const userVideo = document.getElementById('userVideo');
+
+        function setupOptimizedSpeechRecognition() {
+            if (!recognition) return;
             
-            // Capture a frame every 5 seconds for AI vision
-            captureInterval = setInterval(() => {
-                if (userVideo.videoWidth > 0) {
-                    canvas.width = userVideo.videoWidth;
-                    canvas.height = userVideo.videoHeight;
-                    ctx.drawImage(userVideo, 0, 0);
-                    
-                    // Convert to base64 for sending to AI
-                    const imageData = canvas.toDataURL('image/jpeg', 0.8);
-                    console.log('📸 Captured video frame for AI vision');
-                    // We'll use this in the sendVoiceMessage function
+            let finalTranscript = ''; // Buffer for final results
+            document.getElementById('userSpeaking').classList.add('hidden'); // Initially hidden
+
+            recognition.onstart = () => {
+                console.log('Speech recognition started');
+                // If recognition starts when it should be disabled (e.g., during TTS), stop it immediately
+                if (micDisabledForTTS || isPlayingAudio || isProcessingMessage) {
+                    console.log('🛑 Recognition started when it should be disabled. Stopping immediately.');
+                    recognition.stop();
+                    return;
                 }
-            }, 5000);
+                document.getElementById('userSpeaking').classList.remove('hidden'); 
+            };
+
+            recognition.onresult = (event) => {
+                // --- Turn chaining buffer logic ---
+                let interimTranscript = Array.from(event.results)
+                    .filter(r => !r.isFinal)
+                    .map(r => r[0].transcript)
+                    .join('');
+                let currentFinalTranscript = Array.from(event.results)
+                    .filter(r => r.isFinal)
+                    .map(r => r[0].transcript)
+                    .join('');
+
+                // If interim, buffer and reset timer
+                if (interimTranscript.trim().length > 0) {
+                    speechBuffer = interimTranscript.trim();
+                    if (speechBufferTimer) clearTimeout(speechBufferTimer);
+                    speechBufferTimer = setTimeout(() => {
+                        // Only process if buffer is not empty
+                        if (speechBuffer.length > 2) {
+                            processSpeechInput(speechBuffer);
+                            speechBuffer = "";
+                        }
+                    }, TURN_CHAINING_WINDOW_MS);
+                }
+
+                // If final, process immediately (but still debounce)
+                if (currentFinalTranscript.trim().length > 2) {
+                    if (speechBufferTimer) clearTimeout(speechBufferTimer);
+                    processSpeechInput(currentFinalTranscript.trim());
+                    speechBuffer = "";
+                }
+            };
+            
+            // MODIFIED: onend to restart microphone
+            recognition.onend = () => {
+                console.log('Speech recognition ended');
+                document.getElementById('userSpeaking').classList.add('hidden');
+                // Ensure microphone restarts after it ends, unless TTS is playing or mic is off
+                if (!micDisabledForTTS && !isProcessingMessage && !isPlayingAudio && micEnabled) {
+                    setTimeout(() => { if (micEnabled) checkAndRestartMicrophone(); }, TTS_QUIESCE_DELAY_MS);
+                }
+            };
+            
+            // MODIFIED: onerror to restart microphone
+            recognition.onerror = (event) => {
+                console.error('Speech Recognition Error:', event.error);
+                document.getElementById('userSpeaking').classList.add('hidden'); // Hide speaking indicator on error
+
+                if (event.error === 'no-speech' || event.error === 'audio-capture' || event.error === 'network') {
+                    console.log('Recoverable error, attempting restart.');
+                    // ADDED: TTS_QUIESCE_DELAY_MS for errors too, to prevent immediate re-error
+                    setTimeout(checkAndRestartMicrophone, TTS_QUIESCE_DELAY_MS); 
+                } else if (event.error === 'not-allowed') {
+                    updateStatus('❌ Microphone access denied. Please enable in browser settings.', 'error');
+                    micEnabled = false;
+                    document.getElementById('micBtn').classList.add('muted');
+                    document.getElementById('micBtn').disabled = true; // Disable button if not allowed
+                } else {
+                    console.warn('Unhandled speech recognition error:', event.error);
+                }
+            };
         }
-        
-        function toggleMic() {
-            if (!userStream) return;
-            
-            const audioTracks = userStream.getAudioTracks();
-            micEnabled = !micEnabled;
-            
-            audioTracks.forEach(track => {
-                track.enabled = micEnabled;
-            });
-            
-            const micBtn = document.getElementById('micBtn');
-            micBtn.className = `control-btn ${micEnabled ? 'btn-mic' : 'btn-mic muted'}`;
-            micBtn.innerHTML = micEnabled ? '🎤' : '🔇';
-            
-            console.log(`🎤 Microphone ${micEnabled ? 'enabled' : 'disabled'}`);
-        }
-        
-        function toggleCamera() {
-            if (!userStream) return;
-            
-            const videoTracks = userStream.getVideoTracks();
-            cameraEnabled = !cameraEnabled;
-            
-            videoTracks.forEach(track => {
-                track.enabled = cameraEnabled;
-            });
-            
-            const cameraBtn = document.getElementById('cameraBtn');
-            cameraBtn.className = `control-btn ${cameraEnabled ? 'btn-camera' : 'btn-camera off'}`;
-            cameraBtn.innerHTML = cameraEnabled ? '📷' : '📷';
-            
-            // Show/hide user video overlay
-            const userVideoOverlay = document.querySelector('.user-video-overlay');
-            userVideoOverlay.style.opacity = cameraEnabled ? '1' : '0.3';
-            
-            console.log(`📷 Camera ${cameraEnabled ? 'enabled' : 'disabled'}`);
-        }
-        
-        function toggleVoiceMode() {
-            voiceModeEnabled = !voiceModeEnabled;
-            
-            const voiceBtn = document.getElementById('voiceBtn');
-            voiceBtn.className = `control-btn ${voiceModeEnabled ? 'btn-voice active' : 'btn-voice'}`;
-            
-            if (voiceModeEnabled && recognition) {
-                recognition.start();
-                console.log('🗣️ Voice mode enabled - listening...');
-                updateStatus('Listening... speak to the AI', 'connected');
-            } else if (recognition) {
-                recognition.stop();
-                console.log('🗣️ Voice mode disabled');
-                updateStatus('Voice mode disabled', 'connecting');
+
+        // New: process speech input with echo/duplicate filtering
+        function processSpeechInput(transcript) {
+            if (!transcript || transcript.length < 2) return;
+            // Block if echo or duplicate
+            // Block if input contains a large portion of the last AI response (not just substring)
+            const normalizedInput = transcript.toLowerCase().trim();
+            const normalizedAiResponse = (lastAiResponse || "").toLowerCase().trim();
+            if (normalizedAiResponse && normalizedInput.length > 0) {
+                // If input contains more than 60% of the last AI response, block
+                const aiWords = normalizedAiResponse.split(' ').filter(w => w.length > 1);
+                const inputWords = normalizedInput.split(' ').filter(w => w.length > 1);
+                let matchCount = 0;
+                for (let word of aiWords) {
+                    if (inputWords.includes(word)) matchCount++;
+                }
+                const overlap = matchCount / aiWords.length;
+                if (overlap > 0.6 && aiWords.length > 3) {
+                    console.log(`🚫 Blocked input containing large portion of last AI response: "${transcript}"`);
+                    if (recognition && recognition.state === 'listening') {
+                        try {
+                            recognition.stop();
+                            setTimeout(() => { if (micEnabled) checkAndRestartMicrophone(); }, 500);
+                        } catch (e) { /* ignore */ }
+                    }
+                    return;
+                }
+                // Block if input is a duplicate or concatenation of previous AI responses (growing message)
+                if (normalizedInput.includes(normalizedAiResponse) && normalizedInput.length > normalizedAiResponse.length + 10) {
+                    console.log(`🚫 Blocked input that is a concatenation of previous AI responses: "${transcript}"`);
+                    if (recognition && recognition.state === 'listening') {
+                        try {
+                            recognition.stop();
+                            setTimeout(() => { if (micEnabled) checkAndRestartMicrophone(); }, 500);
+                        } catch (e) { /* ignore */ }
+                    }
+                    return;
+                }
             }
-        }
-        
-        function toggleTranscript() {
-            transcriptVisible = !transcriptVisible;
-            const transcriptOverlay = document.getElementById('transcriptOverlay');
-            transcriptOverlay.style.display = transcriptVisible ? 'block' : 'none';
-        }
-        
-        function setupAudioVisualization() {
-            const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-            const analyser = audioContext.createAnalyser();
-            const source = audioContext.createMediaStreamSource(userStream);
-            
-            source.connect(analyser);
-            analyser.fftSize = 256;
-            
-            const bufferLength = analyser.frequencyBinCount;
-            const dataArray = new Uint8Array(bufferLength);
-            
-            // Create visualizer bars
-            const visualizer = document.getElementById('audioVisualizer');
-            for (let i = 0; i < 10; i++) {
-                const bar = document.createElement('div');
-                bar.className = 'audio-bar';
-                bar.style.height = '2px';
-                visualizer.appendChild(bar);
+            if (isEchoOrDuplicate(transcript)) {
+                if (recognition && recognition.state === 'listening') {
+                    try {
+                        recognition.stop();
+                        setTimeout(() => { if (micEnabled) checkAndRestartMicrophone(); }, 500);
+                    } catch (e) { /* ignore */ }
+                }
+                return;
             }
+            // If we reach here, it's a valid, unique human speech
+            console.log('✅ Processing unique human speech:', transcript);
+            performanceTracker.lastSpeechTime = Date.now();
+            sendMessageAndStreamResponse(transcript);
+            setTimeout(() => { if (micEnabled) checkAndRestartMicrophone(); }, MIC_RESTART_DELAY_MS);
+        }
+
+        // Enhanced echo/duplicate filter: block if input is similar to last AI response
+        function isEchoOrDuplicate(input) {
+            const normalizedInput = input.toLowerCase().trim();
+            const normalizedAiResponse = (lastAiResponse || "").toLowerCase().trim();
+            // Block if input is a substring or highly similar to last AI response
+            if (normalizedAiResponse && normalizedInput.length > 0) {
+                if (
+                    normalizedAiResponse.includes(normalizedInput) ||
+                    normalizedInput.includes(normalizedAiResponse) ||
+                    calculateSimilarity(normalizedInput, normalizedAiResponse) > 0.8
+                ) {
+                    console.log(`🚫 Blocked echo/AI repeat: "${input}" ~ "${lastAiResponse}"`);
+                    return true;
+                }
+            }
+            // Block if input is a duplicate of last user input (existing logic)
+            if (isDuplicateInput(input)) {
+                return true;
+            }
+            return false;
+        }
+
+        // === STREAMING AUDIO & TTS SYSTEM ===
+
+        function startAvatarSpeaking() {
+            if (avatarSpeaking) return;
+            console.log('▶️ Starting avatar speaking');
+            avatarSpeaking = true;
+            document.getElementById('aiSpeaking').classList.remove('hidden');
             
-            function updateVisualization() {
-                analyser.getByteFrequencyData(dataArray);
-                const bars = visualizer.children;
+            lastAiAudioTime = Date.now();
+        }
+
+        function stopAvatarSpeaking() {
+            if (!avatarSpeaking) return;
+            console.log('⏹️ Stopping avatar speaking - AI speech buffer will clear automatically');
+            avatarSpeaking = false;
+            document.getElementById('aiSpeaking').classList.add('hidden');
+            
+            // Clear AI speech buffer after a delay
+            clearAiSpeechBuffer();
+        }
+
+        async function playNextAudioChunk() {
+            if (audioQueue.length === 0) {
+                isPlayingAudio = false;
+                stopAvatarSpeaking();
                 
-                for (let i = 0; i < bars.length; i++) {
-                    const barHeight = Math.max(2, (dataArray[i] / 255) * 20);
-                    bars[i].style.height = barHeight + 'px';
+                // Re-enable microphone when done ONLY IF it was disabled for TTS
+                // ADDED: TTS_QUIESCE_DELAY_MS to ensure audio fully fades
+                if (micDisabledForTTS) {
+                    console.log(`🎤 Preparing to restart microphone after ${TTS_QUIESCE_DELAY_MS}ms quiesce period.`);
+                    setTimeout(() => {
+                        micDisabledForTTS = false;
+                        checkAndRestartMicrophone(); // Restart microphone if needed
+                    }, TTS_QUIESCE_DELAY_MS);
                 }
-                
-                requestAnimationFrame(updateVisualization);
-            }
-            
-            updateVisualization();
-        }
-        
-        function setupSpeechRecognition() {
-            if (!recognition) {
-                console.log('❌ Speech recognition not supported');
                 return;
             }
             
-            recognition.onresult = function(event) {
-                let finalTranscript = '';
-                
-                for (let i = event.resultIndex; i < event.results.length; i++) {
-                    if (event.results[i].isFinal) {
-                        finalTranscript += event.results[i][0].transcript;
-                    }
-                }
-                
-                if (finalTranscript.trim()) {
-                    console.log('🗣️ Speech recognized:', finalTranscript);
-                    sendVoiceMessage(finalTranscript.trim());
-                }
-            };
-            
-            recognition.onstart = function() {
-                document.getElementById('userSpeaking').classList.remove('hidden');
-            };
-            
-            recognition.onend = function() {
-                document.getElementById('userSpeaking').classList.add('hidden');
-                
-                // Restart if voice mode is still enabled
-                if (voiceModeEnabled) {
-                    setTimeout(() => {
-                        recognition.start();
-                    }, 100);
-                }
-            };
-            
-            recognition.onerror = function(event) {
-                console.error('Speech recognition error:', event.error);
-            };
-        }
-        
-        // UPDATED: Enhanced sendVoiceMessage to handle avatar videos
-        async function sendVoiceMessage(transcript) {
-            console.log('📤 Sending voice message with vision:', transcript);
-            addTranscriptMessage('user', transcript);
-            
-            // Capture current video frame for AI vision
-            const canvas = document.getElementById('captureCanvas');
-            const userVideo = document.getElementById('userVideo');
-            let imageData = null;
-            
-            if (cameraEnabled && userVideo.videoWidth > 0) {
-                const ctx = canvas.getContext('2d');
-                canvas.width = userVideo.videoWidth;
-                canvas.height = userVideo.videoHeight;
-                ctx.drawImage(userVideo, 0, 0);
-                imageData = canvas.toDataURL('image/jpeg', 0.8);
+            // Prevent audio overlapping - wait for current audio to finish
+            if (isPlayingAudio) {
+                console.log('🎵 Audio already playing, waiting for current chunk to finish');
+                return;
             }
+            
+            // CRITICAL: Stop microphone immediately BEFORE playing TTS
+            if (micEnabled && recognition && recognition.state === 'listening' && !micDisabledForTTS) {
+                try {
+                    recognition.stop();
+                    micDisabledForTTS = true; // Flag that mic was disabled by TTS
+                    console.log('🔇 MICROPHONE DISABLED FOR TTS (explicit stop)');
+                    // REMOVED: await new Promise(resolve => setTimeout(resolve, MIC_RESTART_DELAY_MS)); 
+                    // This delay was causing issues by allowing audio to start before mic was truly off.
+                } catch (e) {
+                    console.log('🔇 Recognition already stopped or error stopping (expected):', e);
+                }
+            } else if (!micEnabled) {
+                console.log('🔇 Microphone is already physically disabled by user.');
+            } else if (micDisabledForTTS) {
+                console.log('🔇 Microphone already disabled for TTS.');
+            }
+
+            isPlayingAudio = true;
+            startAvatarSpeaking();
+
+            const audioBase64 = audioQueue.shift();
             
             try {
-                const requestBody = {
-                    session_id: chatSession,
-                    message: transcript,
-                    use_avatar: true,  // Request avatar generation
-                    video_frame: imageData
-                };
-                
-                const response = await fetch(`${API_BASE}/chat/message`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${authToken}`
-                    },
-                    body: JSON.stringify(requestBody)
-                });
-                
-                const result = await response.json();
-                
-                if (result.error) {
-                    console.error('API error:', result.error);
-                    addTranscriptMessage('ai', 'Sorry, I encountered an error: ' + result.error);
-                } else {
-                    console.log('✅ AI response:', result.reply);
-                    addTranscriptMessage('ai', result.reply);
+                // Ensure audio context is resumed
+                if (!audioContext) { // Initialize if not already
+                    audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                    analyser = audioContext.createAnalyser();
+                    analyser.fftSize = 256;
+                    dataArray = new Uint8Array(analyser.frequencyBinCount);
                     
-                    // Check for avatar video if one was requested
-                    if (result.message_id && result.avatar_generating) {
-                        console.log('🎬 Avatar generating, checking for video...');
-                        
-                        // Show video generating indicator
-                        document.getElementById('videoGenerating').classList.remove('hidden');
-                        
-                        // Poll for the video every 2 seconds for up to 30 seconds
-                        let attempts = 0;
-                        const maxAttempts = 15;
-                        
-                        const checkVideo = setInterval(async () => {
-                            attempts++;
-                            console.log(`🔍 Checking for video, attempt ${attempts}/${maxAttempts}`);
-                            
-                            const videoReady = await checkForAvatarVideo(result.message_id);
-                            
-                            if (videoReady || attempts >= maxAttempts) {
-                                clearInterval(checkVideo);
-                                document.getElementById('videoGenerating').classList.add('hidden');
-                                
-                                if (!videoReady) {
-                                    console.log('⏱️ Video check timed out, using TTS fallback');
-                                    speakAIResponse(result.reply);
-                                }
-                            }
-                        }, 2000);
-                    } else {
-                        // No avatar requested, use TTS
-                        speakAIResponse(result.reply);
+                    // Connect user stream to audio context for visualizer even when not listening
+                    if (userStream && userStream.getAudioTracks().length > 0) {
+                        const userAudioSource = audioContext.createMediaStreamSource(userStream);
+                        userAudioSource.connect(analyser); // Connect user audio to analyser for live feedback
+                    }
+                }
+                // Always attempt to resume context before playing
+                if (audioContext.state === 'suspended') {
+                    await audioContext.resume();
+                    console.log('AudioContext resumed successfully.');
+                }
+
+                const audioBytes = atob(audioBase64);
+                const audioBlob = new Blob([new Uint8Array(audioBytes.split('').map(char => char.charCodeAt(0)))], { type: 'audio/mpeg' }); 
+                const audioUrl = URL.createObjectURL(audioBlob);
+                const audio = new Audio(audioUrl);
+                
+                // Create isolated audio routing to prevent microphone pickup
+                if (audioSource) {
+                    try {
+                        audioSource.disconnect();
+                    } catch (e) {
+                        // Ignore disconnect errors
                     }
                 }
                 
-            } catch (error) {
-                console.error('❌ Error sending message:', error);
-                addTranscriptMessage('ai', 'Sorry, I encountered a connection error.');
+                // Create audio source and connect through gain node for better control
+                audioSource = audioContext.createMediaElementSource(audio);
+                const gainNode = audioContext.createGain();
+                
+                // Connect: audioSource -> gainNode -> analyser (for visualization) -> destination (speakers)
+                audioSource.connect(gainNode);
+                gainNode.connect(analyser); // Connect AI audio to analyser for visualization
+                gainNode.connect(audioContext.destination); // DIRECTLY connect to speakers.
+                
+                // Ensure audio plays through speakers/headphones only, not microphone
+                audio.setAttribute('playsinline', true);
+                audio.setAttribute('webkit-playsinline', true);
+
+                // Fixed event handlers with microphone re-enabling
+                audio.onended = () => {
+                    console.log('🎵 Audio chunk finished playing');
+                    URL.revokeObjectURL(audioUrl);
+                    
+                    // Always set isPlayingAudio to false when chunk ends
+                    isPlayingAudio = false;
+                    
+                    // Clean up audio source efficiently
+                    if (audioSource) {
+                        try {
+                            audioSource.disconnect();
+                        } catch (e) {
+                            // Ignore disconnect errors
+                        }
+                        audioSource = null;
+                    }
+                    
+                    // Continue playing queue or re-enable microphone
+                    setTimeout(() => {
+                        if (audioQueue.length > 0) {
+                            playNextAudioChunk(); 
+                        } else {
+                            console.log('🎵 Audio queue empty, stopping avatar speaking');
+                            stopAvatarSpeaking();
+                            // Microphone will be re-enabled here in the playNextAudioChunk parent scope
+                        }
+                    }, 10); // Very short delay for clean audio transitions
+                };
+                
+                audio.onerror = (e) => {
+                    console.error('❌ Audio playback error:', e);
+                    URL.revokeObjectURL(audioUrl);
+                    
+                    // Clean up audio source
+                    if (audioSource) {
+                        try {
+                            audioSource.disconnect();
+                        } catch (e) {
+                            // Ignore disconnect errors
+                        }
+                        audioSource = null;
+                    }
+                    
+                    // Ensure microphone is re-enabled after error
+                    isPlayingAudio = false; 
+                    if (audioQueue.length > 0) {
+                        requestAnimationFrame(() => playNextAudioChunk());
+                    } else {
+                        stopAvatarSpeaking();
+                    }
+                };
+
+                console.log('🎵 Starting audio playback');
+                await audio.play(); // Start playing the audio chunk
+
+            } catch (e) {
+                console.error('❌ Failed to decode or play audio chunk:', e);
+                isPlayingAudio = false; // Mark as not playing on error
+                
+                setTimeout(() => {
+                    if (audioQueue.length > 0) {
+                        playNextAudioChunk();
+                    } else {
+                        stopAvatarSpeaking();
+                    }
+                }, 500);
             }
         }
-        
-        function speakAIResponse(text) {
-            // First try OpenAI TTS if available, fallback to browser TTS
-            if (authToken) {
-                try {
-                    // Use OpenAI's TTS API for better quality
-                    fetch(`${API_BASE}/chat/tts`, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'Authorization': `Bearer ${authToken}`
-                        },
-                        body: JSON.stringify({
-                            text: text,
-                            voice: 'alloy'  // OpenAI voice
-                        })
-                    })
-                    .then(response => response.blob())
-                    .then(blob => {
-                        const audioUrl = URL.createObjectURL(blob);
-                        const audio = new Audio(audioUrl);
-                        audio.play();
-                        console.log('🔊 Playing OpenAI TTS audio');
-                        
-                        // Show AI speaking indicator during TTS
-                        document.getElementById('aiSpeaking').classList.remove('hidden');
-                        audio.onended = () => {
-                            document.getElementById('aiSpeaking').classList.add('hidden');
-                        };
-                    })
-                    .catch(error => {
-                        console.log('OpenAI TTS failed, using browser TTS:', error);
-                        useBrowserTTS(text);
-                    });
-                } catch (error) {
-                    console.log('OpenAI TTS error, using browser TTS:', error);
-                    useBrowserTTS(text);
+
+        // Preload next audio chunk for seamless playback
+        function preloadNextAudioChunk() {
+            if (isPreloadingNext || audioQueue.length === 0) return;
+            
+            isPreloadingNext = true;
+            const nextAudioBase64 = audioQueue[0]; // Don't remove yet
+            
+            try {
+                const audioBytes = atob(nextAudioBase64);
+                const audioBlob = new Blob([new Uint8Array(audioBytes.split('').map(char => char.charCodeAt(0)))], { type: 'audio/mpeg' });
+                const audioUrl = URL.createObjectURL(audioBlob);
+                
+                preloadedAudio = new Audio(audioUrl);
+                preloadedAudio.preload = 'auto';
+                
+                preloadedAudio.onloadeddata = () => {
+                    console.log('🎵 Next audio chunk preloaded');
+                    isPreloadingNext = false; // Reset preload flag here
+                };
+                
+                preloadedAudio.onerror = () => {
+                    console.warn('⚠️ Audio preload failed');
+                    if (preloadedAudio) {
+                        URL.revokeObjectURL(preloadedAudio.src);
+                        preloadedAudio = null;
+                    }
+                    isPreloadingNext = false;
+                };
+                
+            } catch (e) {
+                console.error('❌ Failed to preload audio:', e);
+                isPreloadingNext = false;
+            }
+        }
+
+        // === MESSAGE PROCESSING (REBUILT FOR STREAMING) ===
+        function sendMessageAndStreamResponse(transcript) {
+            if (isProcessingMessage) {
+                console.log('⏸️ Already processing, skipping new message...');
+                return;
+            }
+            isProcessingMessage = true;
+            console.log('⚡ Processing message with streaming:', transcript);
+            document.getElementById('processingIndicator').classList.remove('hidden');
+            addTranscriptMessage('user', transcript);
+
+            // Create a new AI message container but leave its content empty initially
+            currentAiMessageDiv = addTranscriptMessage('ai', ''); 
+            const aiMessageContentElement = currentAiMessageDiv.querySelector('.message-content');
+
+            let imageData = null;
+            // NEW: Explicitly set imageData only if camera is enabled AND userVideo is ready
+            if (cameraEnabled && userStream) { // Check if userStream is available
+                const userVideoElement = document.getElementById('userVideo');
+                if (userVideoElement && userVideoElement.videoWidth > 0 && userVideoElement.videoHeight > 0) {
+                    const canvas = document.getElementById('captureCanvas');
+                    // Ensure canvas dimensions match video for proper capture
+                    canvas.width = userVideoElement.videoWidth;
+                    canvas.height = userVideoElement.videoHeight;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(userVideoElement, 0, 0, canvas.width, canvas.height);
+                    imageData = canvas.toDataURL('image/jpeg', 0.6); // Quality 0.6 for smaller data
+                } else {
+                    console.warn('User video not ready for capture. Sending null video frame.');
+                    imageData = null; // Explicitly set to null if not capturing a valid frame
                 }
             } else {
-                useBrowserTTS(text);
+                console.warn('Camera is disabled or userStream not available. Sending null video frame.');
+                imageData = null; // Explicitly set to null if not capturing a valid frame
             }
-        }
-        
-        function useBrowserTTS(text) {
-            // Stop any existing speech
-            speechSynthesis.cancel();
             
-            const utterance = new SpeechSynthesisUtterance(text);
-            utterance.rate = 1.0;
-            utterance.pitch = 1.1;
-            utterance.volume = 0.9;
-            
-            // Show AI speaking indicator
-            document.getElementById('aiSpeaking').classList.remove('hidden');
-            
-            utterance.onend = function() {
-                console.log('🔊 AI speech finished');
-                document.getElementById('aiSpeaking').classList.add('hidden');
+            const streamPayload = {
+                session_id: chatSession,
+                message: transcript,
+                use_avatar: true,
+                video_frame: imageData // Base64 encoded video frame (can be null)
             };
-            
-            // Load voices if not loaded
-            if (speechSynthesis.getVoices().length === 0) {
-                speechSynthesis.addEventListener('voiceschanged', function() {
-                    setVoiceAndSpeak(utterance);
-                });
-            } else {
-                setVoiceAndSpeak(utterance);
-            }
+
+            fetch(`${API_BASE}/chat/message`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${authToken}` // Ensure your backend validates this token
+                },
+                body: JSON.stringify(streamPayload)
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status} - ${response.statusText}`);
+                }
+                if (response.headers.get('Content-Type') && !response.headers.get('Content-Type').includes('text/event-stream')) {
+                    console.warn('Backend might not be sending text/event-stream. Check Content-Type header on backend response.');
+                }
+
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+                let buffer = '';
+
+                function processStream() {
+                    reader.read().then(async ({ done, value }) => { // Made async here to await playNextAudioChunk
+                        if (done) {
+                            console.log('Stream complete.');
+                            document.getElementById('processingIndicator').classList.add('hidden');
+                            isProcessingMessage = false; // Backend stream is done
+                            // Microphone should have already re-enabled when audio queue became empty
+                            checkAndRestartMicrophone(); // Final check to ensure microphone is on
+                            return;
+                        }
+
+                        buffer += decoder.decode(value, { stream: true });
+                        const lines = buffer.split('\n');
+                        buffer = lines.pop();
+
+                        for (const line of lines) { // Changed to for...of to use await
+                            if (line.startsWith('data:')) {
+                                try {
+                                    const jsonStr = line.substring(5).trim();
+                                    const data = JSON.parse(jsonStr);
+                                    
+                                    if (data.type === 'text') {
+                                        startAvatarSpeaking(); // Start speaking animation
+                                        aiMessageContentElement.textContent += data.content;
+                                        
+                                        // TRACK AI TEXT for smart voice filtering
+                                        addToAiSpeechBuffer(data.content);
+                                        
+                                        currentAiMessageDiv.scrollIntoView({ behavior: 'smooth', block: 'end' });
+                                    } else if (data.type === 'audio') {
+                                        // Only add to queue if we're not playing too much already
+                                        if (audioQueue.length < 5) { // Limit queue size to prevent overlaps
+                                            audioQueue.push(data.content);
+                                        } else {
+                                            console.log('🎵 Audio queue full, dropping chunk to prevent overlap');
+                                        }
+                                        
+                                        // Start audio immediately if not playing
+                                        if (!isPlayingAudio && audioQueue.length > 0) {
+                                            await playNextAudioChunk();
+                                        }
+                                    } else if (data.type === 'end') {
+                                        console.log(`Server finished processing in ${data.processing_time.toFixed(2)}s`);
+                                        // Clear recent inputs when AI finishes to allow fresh conversation
+                                        setTimeout(() => {
+                                            clearRecentInputs();
+                                        }, 1000);
+                                    } else if (data.type === 'error') {
+                                        console.error('Stream error from server:', data.content);
+                                        aiMessageContentElement.textContent += `\n[Error from AI: ${data.content}]`;
+                                    }
+                                } catch (e) {
+                                    console.error('❌ Failed to parse JSON from stream:', e);
+                                    console.error('Problematic line (might be partial):', line);
+                                }
+                            }
+                        }
+
+                        processStream();
+                    }).catch(error => {
+                        console.error('❌ Stream read error:', error);
+                        document.getElementById('processingIndicator').classList.add('hidden');
+                        aiMessageContentElement.textContent = "[Sorry, an error occurred during streaming. Please check console.]";
+                        isProcessingMessage = false;
+                        checkAndRestartMicrophone(); // Attempt to restart microphone after stream error
+                    });
+                }
+                processStream();
+            })
+            .catch(error => {
+                console.error('❌ Streaming fetch initiation error:', error);
+                if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
+                    console.error('This might be a CORS issue. Ensure your backend allows requests from this origin (e.g., by adding CORS headers).');
+                }
+                document.getElementById('processingIndicator').classList.add('hidden');
+                aiMessageContentElement.textContent = "[Sorry, I couldn't connect to the AI. Please try again or check your server connection and CORS settings.]";
+                isProcessingMessage = false;
+                checkAndRestartMicrophone(); // Attempt to restart microphone after fetch error
+            });
         }
-        
-        function setVoiceAndSpeak(utterance) {
-            const voices = speechSynthesis.getVoices();
-            
-            // Try to find the best available voice
-            const preferredVoices = [
-                'Samantha',
-                'Karen',
-                'Moira',
-                'Tessa',
-                'Veena',
-                'Fiona'
-            ];
-            
-            let selectedVoice = null;
-            
-            // Look for preferred voices
-            for (const voiceName of preferredVoices) {
-                selectedVoice = voices.find(voice => voice.name.includes(voiceName));
-                if (selectedVoice) break;
-            }
-            
-            // Fallback to any English female voice
-            if (!selectedVoice) {
-                selectedVoice = voices.find(voice => 
-                    voice.lang.startsWith('en') && 
-                    (voice.name.toLowerCase().includes('female') || 
-                     voice.name.toLowerCase().includes('woman'))
-                );
-            }
-            
-            // Final fallback to any English voice
-            if (!selectedVoice) {
-                selectedVoice = voices.find(voice => voice.lang.startsWith('en'));
-            }
-            
-            if (selectedVoice) {
-                utterance.voice = selectedVoice;
-                console.log(`🔊 Using voice: ${selectedVoice.name}`);
-            }
-            
-            speechSynthesis.speak(utterance);
-            console.log('🔊 AI speaking:', utterance.text.substring(0, 50) + '...');
-        }
-        
+
+        // === TRANSCRIPT MANAGEMENT ===
         function addTranscriptMessage(sender, message) {
             const transcriptMessages = document.getElementById('transcriptMessages');
             const messageDiv = document.createElement('div');
             messageDiv.className = `transcript-message ${sender}-transcript`;
             
-            const timestamp = new Date().toLocaleTimeString();
-            const senderLabel = sender === 'user' ? currentUser.name || 'You' : 'AI Assistant';
+            const timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            const senderLabel = sender === 'user' ? (currentUser.name || 'You') : 'AI Assistant';
             
+            // Add a specific class to the content part for easy selection
             messageDiv.innerHTML = `
                 <div class="message-time">${senderLabel} - ${timestamp}</div>
-                <div>${message}</div>
+                <div class="message-content">${message}</div>
             `;
             
             transcriptMessages.appendChild(messageDiv);
-            transcriptMessages.scrollTop = transcriptMessages.scrollHeight;
+            transcriptMessages.scrollTop = transcriptMessages.scrollHeight; // Auto-scroll to bottom
+
+            // Return the created div so we can append text to it later
+            return messageDiv;
         }
-        
+
+        function toggleTranscript() {
+            const panel = document.getElementById('transcriptPanel');
+            panel.classList.toggle('hidden'); 
+            // Change button text/icon based on state
+            const chatToggleBtn = document.getElementById('chatToggleBtn');
+            if (panel.classList.contains('hidden')) {
+                chatToggleBtn.textContent = '💬';
+                chatToggleBtn.title = 'Show Chat';
+            } else {
+                chatToggleBtn.textContent = '✕'; 
+                chatToggleBtn.title = 'Hide Chat';
+            }
+        }
+
+        // === CONTROL FUNCTIONS ===
+        function toggleMic() {
+            if (!userStream) {
+                console.warn("Cannot toggle mic: userStream not available.");
+                updateStatus('⚠️ Microphone not available. Please ensure access is granted.', 'error');
+                return;
+            }
+            micEnabled = !micEnabled;
+            userStream.getAudioTracks().forEach(track => track.enabled = micEnabled);
+            document.getElementById('micBtn').classList.toggle('muted', !micEnabled);
+            console.log(`Microphone access toggled: ${micEnabled ? 'On' : 'Off'}`);
+
+            // If mic is physically disabled, ensure recognition stops and clear buffer/timer
+            if (!micEnabled) {
+                if (recognition && recognition.state === 'listening') {
+                    recognition.stop();
+                    console.log('Speech recognition stopped due to mic toggle OFF.');
+                }
+                // Clear speech buffer and timer
+                speechBuffer = "";
+                if (speechBufferTimer) {
+                    clearTimeout(speechBufferTimer);
+                    speechBufferTimer = null;
+                }
+                document.getElementById('userSpeaking').classList.add('hidden');
+            } else {
+                // If mic is re-enabled, attempt to restart recognition (continuous listening)
+                if (recognition && recognition.state !== 'listening') {
+                    checkAndRestartMicrophone();
+                }
+            }
+        }
+
+        function toggleCamera() {
+            if (!userStream) {
+                console.warn("Cannot toggle camera: userStream not available.");
+                updateStatus('⚠️ Camera not available. Please ensure access is granted.', 'error');
+                return;
+            }
+            cameraEnabled = !cameraEnabled;
+            userStream.getVideoTracks().forEach(track => track.enabled = cameraEnabled);
+            document.getElementById('cameraBtn').classList.toggle('off', !cameraEnabled);
+            console.log(`Camera toggled: ${cameraEnabled ? 'On' : 'Off'}`);
+        }
+
         function endCall() {
-            console.log('📞 Ending video call...');
-            
-            // Stop all tracks
             if (userStream) {
-                userStream.getTracks().forEach(track => track.stop());
-                userStream = null;
+                userStream.getTracks().forEach(track => {
+                    track.stop(); // Stop each track in the stream
+                    console.log(`Track stopped: ${track.kind}`);
+                });
+                userStream = null; // Clear the stream reference
             }
-            
-            // Stop speech recognition
-            if (recognition && voiceModeEnabled) {
+            if (recognition) {
                 recognition.stop();
+                console.log("Speech recognition stopped.");
             }
             
-            // Stop video capture
-            if (captureInterval) {
-                clearInterval(captureInterval);
+            // Stop any playing audio
+            if (isPlayingAudio) {
+                isPlayingAudio = false;
+                audioQueue.length = 0; // Clear audio queue
             }
             
-            // Stop any ongoing speech
-            speechSynthesis.cancel();
+            // Stop avatar speaking animation
+            if (avatarSpeaking) {
+                stopAvatarSpeaking();
+            }
             
-            updateStatus('Call ended', 'error');
+            // Cancel animation frame if running
+            if (animationFrame) {
+                cancelAnimationFrame(animationFrame);
+            }
             
-            // Close window
-            setTimeout(() => {
-                window.close();
+            // Close AudioContext
+            if (audioContext && audioContext.state !== 'closed') {
+                audioContext.close().then(() => console.log('AudioContext closed.'));
+            }
+
+            updateStatus('📞 Call ended', 'error');
+            
+            // Close the tab after a short delay
+            setTimeout(() => { 
+                window.close(); 
             }, 1000);
         }
         
-        // Initialize
-        updateStatus('Ready to start video call', 'connecting');
-        
-        // Add welcome message
-        setTimeout(() => {
-            addTranscriptMessage('ai', 'Hello! I\'m your AI teaching assistant. Start the video call and enable voice mode to have a natural conversation. I can see your video and respond with speech and avatar videos!');
-        }, 1000);
-        
-        // Handle page unload
-        window.addEventListener('beforeunload', function() {
-            if (userStream) {
-                userStream.getTracks().forEach(track => track.stop());
+        // === INITIALIZATION ===
+        document.addEventListener('DOMContentLoaded', () => {
+            if (!chatSession || !authToken) {
+                updateStatus('⚠️ Missing session data. Please start from the main app.', 'error');
+                return;
             }
-            if (captureInterval) {
-                clearInterval(captureInterval);
-            }
+            initializeThreeJSAvatar();
+            // Automatically start the video call and speech recognition
+            startVideoCall(); 
         });
-        
-        console.log('🎉 Zoom-style Video Chat Ready with D-ID Avatar Support');
+
+        // This function is now crucial for managing continuous microphone listening
+        function checkAndRestartMicrophone() {
+            // Only restart if mic is enabled by user AND recognition is not already listening
+            // AND we are not currently processing AI response/playing AI audio AND not specifically disabled for TTS
+            if (micEnabled && recognition && recognition.state !== 'listening' && !isProcessingMessage && !isPlayingAudio && !micDisabledForTTS) {
+                try {
+                    recognition.start();
+                    console.log('🎤 Speech recognition (continuous) restarted - ready for input');
+                } catch (e) {
+                    if (e.name === 'InvalidStateError') {
+                        console.log('🎤 Recognition in invalid state for restart (likely already starting or stopping).');
+                    } else {
+                        console.error("Recognition restart failed (unexpected error):", e);
+                    }
+                }
+            } else {
+                console.log('🎤 Microphone restart blocked:');
+                if (!micEnabled) console.log(' - Mic physically disabled.');
+                if (recognition && recognition.state === 'listening') console.log(' - Already listening.');
+                if (isProcessingMessage) console.log(' - AI processing message.');
+                if (isPlayingAudio) console.log(' - AI playing audio.');
+                if (micDisabledForTTS) console.log(' - Mic explicitly disabled for TTS.');
+            }
+        }
     </script>
 </body>
 </html>
-            

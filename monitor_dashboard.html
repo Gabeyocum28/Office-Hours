@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OfficeHours AI - Performance Monitor</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            background: #1a1a1a; 
+            color: white; 
+            padding: 20px;
+        }
+        .dashboard { 
+            max-width: 1400px; 
+            margin: 0 auto; 
+            display: grid; 
+            gap: 20px; 
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        }
+        .metric-card { 
+            background: linear-gradient(135deg, #2d2d2d 0%, #3d3d3d 100%); 
+            border-radius: 15px; 
+            padding: 20px; 
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            border: 1px solid rgba(79, 172, 254, 0.3);
+        }
+        .metric-header { 
+            display: flex; 
+            align-items: center; 
+            gap: 10px; 
+            margin-bottom: 15px; 
+        }
+        .metric-icon { 
+            font-size: 24px; 
+        }
+        .metric-title { 
+            font-size: 18px; 
+            font-weight: 600; 
+        }
+        .metric-value { 
+            font-size: 32px; 
+            font-weight: bold; 
+            color: #4facfe; 
+            margin-bottom: 10px;
+        }
+        .metric-subtitle { 
+            color: #aaa; 
+            font-size: 14px; 
+        }
+        .chart-container { 
+            width: 100%; 
+            height: 200px; 
+            margin-top: 15px; 
+            background: rgba(0,0,0,0.3); 
+            border-radius: 10px; 
+            position: relative;
+            overflow: hidden;
+        }
+        .status-indicator { 
+            display: inline-block; 
+            width: 12px; 
+            height: 12px; 
+            border-radius: 50%; 
+            margin-right: 8px;
+        }
+        .status-good { background: #28a745; }
+        .status-warning { background: #ffc107; }
+        .status-error { background: #dc3545; }
+        .refresh-btn { 
+            position: fixed; 
+            top: 20px; 
+            right: 20px; 
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); 
+            border: none; 
+            padding: 12px 20px; 
+            border-radius: 25px; 
+            color: white; 
+            font-weight: 600; 
+            cursor: pointer; 
+            transition: all 0.3s ease;
+        }
+        .refresh-btn:hover { 
+            transform: translateY(-2px); 
+            box-shadow: 0 10px 25px rgba(79, 172, 254, 0.4); 
+        }
+        .error-log { 
+            background: rgba(220, 53, 69, 0.1); 
+            border: 1px solid rgba(220, 53, 69, 0.3); 
+            border-radius: 10px; 
+            padding: 15px; 
+            margin-top: 15px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        .header { 
+            text-align: center; 
+            margin-bottom: 30px; 
+        }
+        .header h1 { 
+            font-size: 36px; 
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); 
+            -webkit-background-clip: text; 
+            -webkit-text-fill-color: transparent; 
+            margin-bottom: 10px;
+        }
+        .loading { 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            height: 100px; 
+            font-size: 18px; 
+            color: #aaa;
+        }
+        .spinner { 
+            width: 30px; 
+            height: 30px; 
+            border: 3px solid #333; 
+            border-top: 3px solid #4facfe; 
+            border-radius: 50%; 
+            animation: spin 1s linear infinite; 
+            margin-right: 15px;
+        }
+        @keyframes spin { 
+            0% { transform: rotate(0deg); } 
+            100% { transform: rotate(360deg); } 
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🎓 OfficeHours AI Performance Monitor</h1>
+        <p>Real-time system performance and optimization metrics</p>
+    </div>
+
+    <button class="refresh-btn" onclick="refreshData()">🔄 Refresh</button>
+
+    <div class="dashboard" id="dashboard">
+        <div class="loading">
+            <div class="spinner"></div>
+            Loading performance metrics...
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:5001';
+        let refreshInterval;
+
+        async function fetchMetrics() {
+            try {
+                const response = await fetch(`${API_BASE}/chat/metrics`);
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+                return await response.json();
+            } catch (error) {
+                console.error('Failed to fetch metrics:', error);
+                return null;
+            }
+        }
+
+        function getStatusClass(value, thresholds) {
+            if (value <= thresholds.good) return 'status-good';
+            if (value <= thresholds.warning) return 'status-warning';
+            return 'status-error';
+        }
+
+        function createMetricCard(title, icon, value, subtitle, status = 'good') {
+            return `
+                <div class="metric-card">
+                    <div class="metric-header">
+                        <span class="metric-icon">${icon}</span>
+                        <span class="metric-title">${title}</span>
+                        <span class="status-indicator ${status}"></span>
+                    </div>
+                    <div class="metric-value">${value}</div>
+                    <div class="metric-subtitle">${subtitle}</div>
+                </div>
+            `;
+        }
+
+        function createChartCard(title, icon, data, chartType = 'line') {
+            const chartId = `chart-${title.replace(/\s+/g, '-').toLowerCase()}`;
+            return `
+                <div class="metric-card">
+                    <div class="metric-header">
+                        <span class="metric-icon">${icon}</span>
+                        <span class="metric-title">${title}</span>
+                    </div>
+                    <div class="chart-container" id="${chartId}">
+                        <canvas width="100%" height="100%"></canvas>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderDashboard(metrics) {
+            if (!metrics) {
+                document.getElementById('dashboard').innerHTML = `
+                    <div class="metric-card">
+                        <div class="error-log">
+                            <h3>❌ Unable to fetch metrics</h3>
+                            <p>Please ensure the OfficeHours AI server is running on ${API_BASE}</p>
+                        </div>
+                    </div>
+                `;
+                return;
+            }
+
+            const performance = metrics.performance || {};
+            const systemStatus = metrics.system_status || {};
+            const recentMetrics = metrics.recent_metrics || {};
+
+            // Calculate status indicators
+            const responseTimeStatus = getStatusClass(performance.avg_response_time_ms || 0, {
+                good: 2000, warning: 5000
+            });
+            
+            const cacheHitStatus = getStatusClass(100 - (performance.cache_hit_rate_percent || 0), {
+                good: 20, warning: 50
+            });
+
+            const dashboard = document.getElementById('dashboard');
+            dashboard.innerHTML = `
+                ${createMetricCard(
+                    'Average Response Time',
+                    '⚡',
+                    `${performance.avg_response_time_ms || 0}ms`,
+                    'Last 20 requests',
+                    responseTimeStatus
+                )}
+                
+                ${createMetricCard(
+                    'Cache Hit Rate',
+                    '🎯',
+                    `${performance.cache_hit_rate_percent || 0}%`,
+                    'TTS cache efficiency',
+                    cacheHitStatus
+                )}
+                
+                ${createMetricCard(
+                    'Active Requests',
+                    '🔄',
+                    performance.concurrent_requests || 0,
+                    'Currently processing'
+                )}
+                
+                ${createMetricCard(
+                    'Error Rate',
+                    '❌',
+                    performance.total_errors || 0,
+                    'Total errors detected',
+                    performance.total_errors > 0 ? 'status-warning' : 'status-good'
+                )}
+                
+                <div class="metric-card">
+                    <div class="metric-header">
+                        <span class="metric-icon">🛠️</span>
+                        <span class="metric-title">System Status</span>
+                    </div>
+                    <div style="margin-top: 15px;">
+                        <div style="margin-bottom: 10px;">
+                            <span class="status-indicator ${systemStatus.openai_available ? 'status-good' : 'status-error'}"></span>
+                            OpenAI API: ${systemStatus.openai_available ? 'Connected' : 'Disconnected'}
+                        </div>
+                        <div style="margin-bottom: 10px;">
+                            <span class="status-indicator ${systemStatus.redis_available ? 'status-good' : 'status-warning'}"></span>
+                            Redis Cache: ${systemStatus.redis_available ? 'Connected' : 'Unavailable'}
+                        </div>
+                        <div>
+                            <span class="status-indicator ${systemStatus.pil_available ? 'status-good' : 'status-warning'}"></span>
+                            Image Processing: ${systemStatus.pil_available ? 'Available' : 'Limited'}
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="metric-card">
+                    <div class="metric-header">
+                        <span class="metric-icon">📊</span>
+                        <span class="metric-title">Recent Performance</span>
+                    </div>
+                    <div style="margin-top: 15px;">
+                        ${(recentMetrics.last_20_requests || []).slice(-5).map((req, idx) => `
+                            <div style="margin-bottom: 8px; padding: 8px; background: rgba(0,0,0,0.3); border-radius: 5px;">
+                                <strong>${req.response_time_ms}ms</strong> - 
+                                ${req.details?.response_length || 0} chars
+                                ${req.details?.tts_chunks ? `(${req.details.tts_chunks} TTS chunks)` : ''}
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
+
+            // Update timestamp
+            const timestamp = new Date(metrics.timestamp * 1000).toLocaleTimeString();
+            dashboard.innerHTML += `
+                <div class="metric-card">
+                    <div class="metric-header">
+                        <span class="metric-icon">🕒</span>
+                        <span class="metric-title">Last Updated</span>
+                    </div>
+                    <div class="metric-value" style="font-size: 18px;">${timestamp}</div>
+                    <div class="metric-subtitle">Auto-refresh every 10 seconds</div>
+                </div>
+            `;
+        }
+
+        async function refreshData() {
+            console.log('🔄 Refreshing metrics...');
+            const metrics = await fetchMetrics();
+            renderDashboard(metrics);
+        }
+
+        function startAutoRefresh() {
+            refreshInterval = setInterval(refreshData, 10000); // Refresh every 10 seconds
+        }
+
+        function stopAutoRefresh() {
+            if (refreshInterval) {
+                clearInterval(refreshInterval);
+            }
+        }
+
+        // Initialize dashboard
+        document.addEventListener('DOMContentLoaded', () => {
+            refreshData();
+            startAutoRefresh();
+        });
+
+        // Stop refresh when page is hidden
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden) {
+                stopAutoRefresh();
+            } else {
+                startAutoRefresh();
+            }
+        });
+
+        // Global refresh function for button
+        window.refreshData = refreshData;
+    </script>
+</body>
+</html>

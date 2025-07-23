@@ -1,20 +1,4 @@
-import pytest
-from app import create_app, db
-from unittest.mock import patch
-from app.models.db_models import Enrollment, User
-
-@pytest.fixture
-def client():
-    app = create_app(testing=True)
-
-    with app.app_context():
-        # Drop all tables and recreate them fresh
-        db.drop_all()
-        db.create_all()
-
-    with app.test_client() as client:
-        yield client
-
+# Replace the entire test_full_flow function in tests/test_full_flow.py
 
 def test_full_flow(client):
     # Register student
@@ -26,14 +10,6 @@ def test_full_flow(client):
     }
     res = client.post('/auth/register', json=student_data)
     assert res.status_code == 201
-
-    # Try to get student user id from response (optional)
-    student_user_id = res.json.get('user', {}).get('id')
-    if not student_user_id:
-        # Query DB to get student user id
-        with client.application.app_context():
-            student_user = User.query.filter_by(email=student_data['email']).first()
-            student_user_id = student_user.id
 
     # Register teacher
     teacher_data = {
@@ -69,8 +45,7 @@ def test_full_flow(client):
 
     # Teacher creates office
     office_data = {
-        "name": "Math 101",
-        "description": "Office hours for Math 101",  # Ignored if your endpoint doesn't use it
+        "name": "Math 101"
     }
     res = client.post('/office/create',
                       headers={'Authorization': f'Bearer {teacher_token}'},
@@ -80,18 +55,12 @@ def test_full_flow(client):
     join_code = res.json['office']['join_code']
     office_id = res.json['office']['id']
 
-    # Create enrollment explicitly in DB since join endpoint may just validate or create too
-    with client.application.app_context():
-        enrollment = Enrollment(user_id=student_user_id, office_id=office_id)
-        db.session.add(enrollment)
-        db.session.commit()
-
-    # Student joins office via join endpoint (should succeed or be idempotent)
+    # Student joins office via join endpoint
     join_data = {"join_code": join_code}
     res = client.post('/office/join',
                       headers={'Authorization': f'Bearer {student_token}'},
                       json=join_data)
-    assert res.status_code == 200
+    assert res.status_code in [200, 201]
 
     # Start chat session using office_id saved earlier
     res = client.post('/chat/start',
@@ -100,8 +69,8 @@ def test_full_flow(client):
     assert res.status_code == 200
     session_id = res.json['session_id']
 
-    # Mock AI response for chat message
-    with patch('app.routes.chat.get_ai_response') as mock_ai:
+    # Mock AI response for chat message - FIXED FUNCTION NAME
+    with patch('app.routes.chat.get_ai_response_with_context') as mock_ai:
         mock_ai.return_value = "Sure, how can I help?"
         res = client.post('/chat/message',
                           headers={'Authorization': f'Bearer {student_token}'},

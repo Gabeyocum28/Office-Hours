@@ -200,7 +200,7 @@
     <div class="container">
         <div class="header">
             <h1>🎓 OfficeHours AI - Test Interface</h1>
-            <p>Test your AI chat and D-ID avatar integration</p>
+            <p>Test your AI chat and 3D avatar integration</p>
         </div>
         
         <div class="main-content">
@@ -262,7 +262,6 @@
                         <div class="chat-controls">
                             <button class="btn btn-success" id="startChatBtn" onclick="startChat()">💬 Start Text Chat</button>
                             <button class="btn btn-warning" id="videoChatBtn" onclick="startVideoChat()" disabled>🎥 Video Chat</button>
-                            <button class="btn btn-secondary" id="testDIDBtn" onclick="testDID()" disabled>🤖 Test D-ID</button>
                         </div>
                     </div>
                 </div>
@@ -272,7 +271,7 @@
             
             <div class="chat-area">
                 <div class="avatar-section">
-                    <div id="avatarPlaceholder">🤖 D-ID Avatar will appear here</div>
+                    <div id="avatarPlaceholder">🤖 3D Avatar will appear here</div>
                 </div>
                 
                 <div class="chat-messages" id="chatMessages">
@@ -522,7 +521,8 @@
             console.log('Auth token:', authToken ? 'Present' : 'Missing');
             
             try {
-                const result = await apiCall('/chat/start', 'POST', { office_id: currentOffice.id });
+                // Corrected endpoint from /chat/start to /chat/start_session
+                const result = await apiCall('/chat/start_session', 'POST', { office_id: currentOffice.id });
                 
                 if (result.error) {
                     showStatus(result.error, 'error');
@@ -532,7 +532,6 @@
                     document.getElementById('messageInput').disabled = false;
                     document.getElementById('sendBtn').disabled = false;
                     document.getElementById('videoChatBtn').disabled = false;
-                    document.getElementById('testDIDBtn').disabled = false;
                     showStatus('Chat session started!');
                     loadChatHistory();
                 }
@@ -654,27 +653,6 @@
             }
         }
         
-        // NEW: Test D-ID Function
-        async function testDID() {
-            console.log('🤖 Testing D-ID API...');
-            showStatus('Testing D-ID API...', 'connecting');
-            
-            try {
-                const result = await apiCall('/chat/message', 'POST', {
-                    session_id: chatSession,
-                    message: "Hello, this is a test message for D-ID avatar",
-                    use_avatar: true
-                });
-                
-                if (result.avatar_generating) {
-                    showStatus('D-ID avatar generation started! Check server console for details.', 'success');
-                } else {
-                    showStatus('D-ID avatar generation failed. Check your API key.', 'error');
-                }
-            } catch (e) {
-                showStatus('D-ID test failed: ' + e.message, 'error');
-            }
-        }
         
         // NEW: Video Chat Function
         function startVideoChat() {
@@ -710,14 +688,14 @@
             }
         }
         
-        // Initialize D-ID integration placeholder
+        // Initialize 3D avatar integration placeholder
         function initializeAvatar() {
             console.log('🤖 Initializing avatar placeholder');
             const avatarPlaceholder = document.getElementById('avatarPlaceholder');
             avatarPlaceholder.innerHTML = `
                 <div style="text-align: center;">
                     <div style="font-size: 48px; margin-bottom: 10px;">🤖</div>
-                    <div>D-ID Avatar</div>
+                    <div>3D Avatar</div>
                     <div style="font-size: 12px; opacity: 0.7;">Start video chat for avatar interaction</div>
                 </div>
             `;
